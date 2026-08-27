@@ -1,0 +1,27 @@
+# Virtual environment — never commit this
+venv/
+env/
+.venv/
+
+# API keys — never commit this
+.env
+
+# Logs
+*.log
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Whisper model cache (large files)
+~/.cache/whisper/
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+desktop.ini

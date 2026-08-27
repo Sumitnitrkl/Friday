@@ -1,0 +1,43 @@
+# FRIDAY Requirements
+# Install with: pip install -r requirements.txt
+
+# Core
+pyyaml>=6.0
+requests>=2.31
+
+# Speech-to-Text (offline)
+openai-whisper>=20231117
+imageio-ffmpeg>=0.4.9   # bundles the ffmpeg binary Whisper needs (no system install required)
+# Also requires: pip install setuptools-rust
+
+# Speech Recognition (microphone input)
+SpeechRecognition>=3.10
+pyaudio>=0.2.13
+# macOS: brew install portaudio then pip install pyaudio
+# Windows: pip install pipwin && pipwin install pyaudio
+
+# Text-to-Speech
+edge-tts>=6.1.9       # online, Microsoft Neural voices (recommended)
+pyttsx3>=2.90         # offline fallback
+
+# AI Backend (online)
+anthropic>=0.20       # Claude API
+
+# System control
+psutil>=5.9           # process management
+
+# App automation
+pyautogui>=0.9.54     # GUI automation, media keys (Windows)
+
+# Windows-only (install only on Windows)
+# pycaw>=20230407     # Windows volume control: pip install pycaw
+# wmi>=1.5.1          # Windows WMI for brightness
+
+# macOS-only (install via brew, not pip)
+# brew install blueutil      → bluetooth control
+# brew install brightness    → display brightness
+# brew install ffmpeg        → audio playback for edge-tts
+# brew install mpg123        → mp3 playback fallback
+
+# Optional: local AI (no internet needed)
+# Install Ollama from https://ollama.ai then: ollama pull llama3

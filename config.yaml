@@ -1,0 +1,46 @@
+# FRIDAY Configuration
+
+assistant:
+  name: "FRIDAY"
+  wake_words:
+    - "hey friday"
+    - "friday"
+    - "ok friday"
+  personality: "warm_casual"    # FRIDAY style
+
+voice:
+  # TTS engine priority: edge_tts (online) -> pyttsx3 (offline)
+  #online_engine: "edge_tts"
+  online_engine: "pyttsx3"
+  offline_engine: "pyttsx3"
+  edge_tts_voice: "en-IE-EmilyNeural"   # Irish/warm English voice
+  pyttsx3_rate: 175
+  pyttsx3_volume: 1.0
+
+speech:
+  # STT engine priority: whisper (local) -> google (online fallback)
+  stt_engine: "whisper"         # whisper / google / vosk
+  whisper_model: "base"         # tiny / base / small / medium
+  listen_timeout: 8             # seconds to wait for speech
+  phrase_timeout: 3             # silence = end of phrase
+  energy_threshold: 300
+
+ai:
+  # AI backend priority: claude_api (online) -> ollama (offline)
+  online_backend: "claude_api"
+  offline_backend: "ollama"
+  claude_model: "claude-sonnet-5"
+  ollama_model: "llama3"        # run: ollama pull llama3
+  max_tokens: 500
+  # Add your Claude API key here OR set env var ANTHROPIC_API_KEY
+  claude_api_key: ""
+
+network:
+  check_url: "https://www.google.com"
+  check_timeout: 3
+
+system:
+  startup_greeting: true
+  speak_confirmations: true     # say "Done!" after actions
+  log_level: "INFO"             # DEBUG / INFO / WARNING
+  log_file: "friday.log"
