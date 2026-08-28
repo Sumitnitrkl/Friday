@@ -26,13 +26,17 @@ speech:
   energy_threshold: 300
 
 ai:
-  # AI backend priority: claude_api (online) -> ollama (offline)
-  online_backend: "claude_api"
+  # AI backend priority: online (groq / claude_api) -> ollama (offline) -> rule-based
+  online_backend: "groq"        # groq = FREE, no credit card
   offline_backend: "ollama"
+  # Groq — FREE + fast. Get a key at https://console.groq.com/keys
+  # Put the key in a .env file as GROQ_API_KEY (keeps it out of git) — NOT here.
+  groq_model: "llama-3.3-70b-versatile"   # or "llama-3.1-8b-instant" (faster)
+  groq_api_key: ""
   claude_model: "claude-sonnet-5"
   ollama_model: "llama3"        # run: ollama pull llama3
   max_tokens: 500
-  # Add your Claude API key here OR set env var ANTHROPIC_API_KEY
+  # API keys belong in .env (gitignored): GROQ_API_KEY / ANTHROPIC_API_KEY
   claude_api_key: ""
 
 network:

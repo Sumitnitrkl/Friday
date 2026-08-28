@@ -4,6 +4,7 @@
 # Core
 pyyaml>=6.0
 requests>=2.31
+python-dotenv>=1.0   # loads API keys (GROQ_API_KEY etc.) from a .env file
 
 # Speech-to-Text (offline)
 openai-whisper>=20231117

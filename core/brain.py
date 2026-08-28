@@ -1,7 +1,7 @@
 """
 FRIDAY Brain — Natural Language Understanding
-Online:  Claude API (claude-sonnet-5)
-Offline: Ollama (llama3 local model)
+Online:  Groq API (free) or Claude API
+Offline: Ollama (llama3 local model) -> rule-based
 Returns structured intent dict for the Dispatcher.
 """
 
@@ -65,15 +65,31 @@ class Brain:
             self.acfg.get("claude_api_key")
             or os.environ.get("ANTHROPIC_API_KEY", "")
         )
+        self.groq_key = (
+            self.acfg.get("groq_api_key")
+            or os.environ.get("GROQ_API_KEY", "")
+        )
 
     # ------------------------------------------------------------------ #
     def parse(self, text: str) -> dict:
-        """Parse natural language command into structured intent."""
-        if self.online and self.api_key:
+        """Parse natural language command into structured intent.
+
+        Priority: online backend (Groq/Claude) -> Ollama (local) -> rule-based.
+        """
+        if self.online:
+            backend = self.acfg.get("online_backend", "groq")
             try:
-                return self._parse_claude(text)
+                if backend == "groq" and self.groq_key:
+                    return self._parse_groq(text)
+                if backend == "claude_api" and self.api_key:
+                    return self._parse_claude(text)
+                # Configured backend has no key — use whatever key is available.
+                if self.groq_key:
+                    return self._parse_groq(text)
+                if self.api_key:
+                    return self._parse_claude(text)
             except Exception as e:
-                logger.warning(f"Claude API failed, trying Ollama: {e}")
+                logger.warning(f"Online AI ({backend}) failed, trying Ollama: {e}")
 
         try:
             return self._parse_ollama(text)
@@ -101,6 +117,33 @@ class Brain:
         raw = response.content[0].text.strip()
         self._conversation.append({"role": "assistant", "content": raw})
 
+        return self._safe_parse_json(raw)
+
+    # ------------------------------------------------------------------ #
+    def _parse_groq(self, text: str) -> dict:
+        """Use Groq's free, OpenAI-compatible API for intent parsing."""
+        self._conversation.append({"role": "user", "content": text})
+        if len(self._conversation) > 10:
+            self._conversation = self._conversation[-10:]
+
+        resp = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.groq_key}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": self.acfg.get("groq_model", "llama-3.3-70b-versatile"),
+                "max_tokens": self.acfg.get("max_tokens", 500),
+                # SYSTEM_PROMPT mentions "JSON", which json_object mode requires.
+                "response_format": {"type": "json_object"},
+                "messages": [{"role": "system", "content": SYSTEM_PROMPT}] + self._conversation,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        raw = resp.json()["choices"][0]["message"]["content"].strip()
+        self._conversation.append({"role": "assistant", "content": raw})
         return self._safe_parse_json(raw)
 
     # ------------------------------------------------------------------ #
