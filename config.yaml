@@ -26,11 +26,14 @@ speech:
   energy_threshold: 300
 
 ai:
-  # AI backend priority: online (groq / claude_api) -> ollama (offline) -> rule-based
-  online_backend: "groq"        # groq = FREE, no credit card
+  # AI backend priority: online (gemini / groq / claude_api) -> ollama -> rule-based
+  online_backend: "gemini"      # gemini = FREE (Google AI Studio), no credit card
   offline_backend: "ollama"
-  # Groq — FREE + fast. Get a key at https://console.groq.com/keys
-  # Put the key in a .env file as GROQ_API_KEY (keeps it out of git) — NOT here.
+  # Gemini — FREE. Get a key at https://aistudio.google.com/apikey
+  # Put the key in a .env file as GEMINI_API_KEY (keeps it out of git) — NOT here.
+  gemini_model: "gemini-2.0-flash"        # or "gemini-1.5-flash"
+  gemini_api_key: ""
+  # Groq — also FREE (https://console.groq.com/keys)
   groq_model: "llama-3.3-70b-versatile"   # or "llama-3.1-8b-instant" (faster)
   groq_api_key: ""
   claude_model: "claude-sonnet-5"

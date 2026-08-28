@@ -1,6 +1,6 @@
 """
 FRIDAY Brain — Natural Language Understanding
-Online:  Groq API (free) or Claude API
+Online:  Gemini (free) / Groq (free) / Claude API
 Offline: Ollama (llama3 local model) -> rule-based
 Returns structured intent dict for the Dispatcher.
 """
@@ -69,6 +69,11 @@ class Brain:
             self.acfg.get("groq_api_key")
             or os.environ.get("GROQ_API_KEY", "")
         )
+        self.gemini_key = (
+            self.acfg.get("gemini_api_key")
+            or os.environ.get("GEMINI_API_KEY", "")
+            or os.environ.get("GOOGLE_API_KEY", "")
+        )
 
     # ------------------------------------------------------------------ #
     def parse(self, text: str) -> dict:
@@ -77,13 +82,17 @@ class Brain:
         Priority: online backend (Groq/Claude) -> Ollama (local) -> rule-based.
         """
         if self.online:
-            backend = self.acfg.get("online_backend", "groq")
+            backend = self.acfg.get("online_backend", "gemini")
             try:
+                if backend == "gemini" and self.gemini_key:
+                    return self._parse_gemini(text)
                 if backend == "groq" and self.groq_key:
                     return self._parse_groq(text)
                 if backend == "claude_api" and self.api_key:
                     return self._parse_claude(text)
                 # Configured backend has no key — use whatever key is available.
+                if self.gemini_key:
+                    return self._parse_gemini(text)
                 if self.groq_key:
                     return self._parse_groq(text)
                 if self.api_key:
@@ -143,6 +152,44 @@ class Brain:
         )
         resp.raise_for_status()
         raw = resp.json()["choices"][0]["message"]["content"].strip()
+        self._conversation.append({"role": "assistant", "content": raw})
+        return self._safe_parse_json(raw)
+
+    # ------------------------------------------------------------------ #
+    def _parse_gemini(self, text: str) -> dict:
+        """Use Google Gemini's free API for intent parsing."""
+        self._conversation.append({"role": "user", "content": text})
+        if len(self._conversation) > 10:
+            self._conversation = self._conversation[-10:]
+
+        # Gemini uses role "model" (not "assistant") and a parts[] structure.
+        contents = [
+            {
+                "role": "model" if m["role"] == "assistant" else "user",
+                "parts": [{"text": m["content"]}],
+            }
+            for m in self._conversation
+        ]
+
+        model = self.acfg.get("gemini_model", "gemini-2.0-flash")
+        resp = requests.post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+            headers={
+                "Content-Type": "application/json",
+                "x-goog-api-key": self.gemini_key,
+            },
+            json={
+                "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
+                "contents": contents,
+                "generationConfig": {
+                    "maxOutputTokens": self.acfg.get("max_tokens", 500),
+                    "responseMimeType": "application/json",
+                },
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        raw = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
         self._conversation.append({"role": "assistant", "content": raw})
         return self._safe_parse_json(raw)
 
