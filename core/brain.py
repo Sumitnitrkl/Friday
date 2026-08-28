@@ -182,7 +182,9 @@ class Brain:
                 "system_instruction": {"parts": [{"text": SYSTEM_PROMPT}]},
                 "contents": contents,
                 "generationConfig": {
-                    "maxOutputTokens": self.acfg.get("max_tokens", 500),
+                    # Gemini 2.5/3.x spend "thinking" tokens before the answer,
+                    # so give generous headroom or the JSON gets truncated.
+                    "maxOutputTokens": max(self.acfg.get("max_tokens", 500), 2048),
                     "responseMimeType": "application/json",
                 },
             },
@@ -268,7 +270,13 @@ class Brain:
         try:
             # Strip markdown fences if present
             clean = raw.strip().strip("```json").strip("```").strip()
-            return json.loads(clean)
+            data = json.loads(clean)
+            # Some models return a list of intents for compound commands
+            # ("open X and search Y"); the dispatcher handles one at a time,
+            # so fall back to the first valid intent object.
+            if isinstance(data, list):
+                data = next((d for d in data if isinstance(d, dict)), {})
+            return data
         except json.JSONDecodeError:
             logger.warning(f"Could not parse JSON: {raw[:200]}")
             return {
