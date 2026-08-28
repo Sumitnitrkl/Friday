@@ -6,6 +6,7 @@ Cross-platform open/close for macOS and Windows
 import subprocess
 import platform
 import logging
+import json
 import psutil
 
 logger = logging.getLogger("FRIDAY.skill.apps")
@@ -48,6 +49,37 @@ APP_ALIASES = {
 }
 
 
+def _windows_start_apps():
+    """All Start-menu apps (Store + desktop) as a list of {Name, AppID}."""
+    ps = "Get-StartApps | Select-Object Name,AppID | ConvertTo-Json -Compress"
+    out = subprocess.run(
+        ["powershell", "-NoProfile", "-Command", ps],
+        capture_output=True, text=True, timeout=10,
+    )
+    data = json.loads(out.stdout or "[]")
+    return data if isinstance(data, list) else [data]
+
+
+def _resolve_windows_app(candidates):
+    """AppID + display name of the first Start app matching any candidate name."""
+    try:
+        apps = _windows_start_apps()
+    except Exception as e:
+        logger.warning(f"Get-StartApps lookup failed: {e}")
+        return None, None
+
+    names = [c.lower().strip() for c in candidates if c]
+    for want in names:                       # exact match wins
+        for a in apps:
+            if a.get("Name", "").lower() == want:
+                return a.get("AppID"), a.get("Name")
+    for want in names:                       # then substring
+        for a in apps:
+            if want and want in a.get("Name", "").lower():
+                return a.get("AppID"), a.get("Name")
+    return None, None
+
+
 def open_app(params: dict) -> str:
     app_name = params.get("app", "").lower().strip()
     alias    = APP_ALIASES.get(app_name)
@@ -59,10 +91,22 @@ def open_app(params: dict) -> str:
             return f"Opening {name}!"
 
         elif SYSTEM == "Windows":
+            # Resolve by Start-menu name so Store apps (WhatsApp, etc.) and
+            # desktop apps both launch reliably, via their AppUserModelID.
+            candidates = [app_name]
+            if alias:
+                candidates += [alias.get("mac", ""),
+                               (alias.get("win") or "").replace(".exe", "")]
+            app_id, display = _resolve_windows_app(candidates)
+            if app_id:
+                subprocess.Popen(["explorer.exe", f"shell:AppsFolder\\{app_id}"])
+                return f"Opening {display}!"
+
+            # Fallbacks: a known launch command, then a bare start.
             if alias and alias.get("cmd_win"):
                 subprocess.Popen(alias["cmd_win"], shell=True)
             else:
-                subprocess.Popen(["start", app_name], shell=True)
+                subprocess.Popen(f'start "" "{app_name}"', shell=True)
             return f"Opening {app_name}!"
 
         else:

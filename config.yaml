@@ -9,11 +9,14 @@ assistant:
   personality: "warm_casual"    # FRIDAY style
 
 voice:
-  # TTS engine priority: edge_tts (online) -> pyttsx3 (offline)
-  #online_engine: "edge_tts"
-  online_engine: "pyttsx3"
+  # TTS engine priority: edge_tts (online, natural neural) -> pyttsx3 (offline)
+  online_engine: "edge_tts"
   offline_engine: "pyttsx3"
-  edge_tts_voice: "en-IE-EmilyNeural"   # Irish/warm English voice
+  # Sweet, natural female voice. Alternatives:
+  #   en-US-AriaNeural   (US, friendly)
+  #   en-IN-NeerjaNeural (Indian English, warm)
+  #   en-GB-SoniaNeural  (British, elegant)
+  edge_tts_voice: "en-US-JennyNeural"   # warm, sweet US female voice
   pyttsx3_rate: 175
   pyttsx3_volume: 1.0
 
