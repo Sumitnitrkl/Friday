@@ -51,9 +51,31 @@ GEMINI_API_KEY=your_key_here
 
 ### 3. Run it
 ```bash
-python main.py
+python main.py          # terminal
+python main.py --ui     # + holographic HUD in your browser
 ```
 Wait for "FRIDAY online", then say: **"Hey FRIDAY, what can you do?"**
+
+---
+
+## 🖥️ The Holographic HUD (`--ui`)
+
+Run with `--ui` and FRIDAY opens a cinematic JARVIS-style interface in your
+browser — a glowing reactive energy core, rotating holographic rings, orbiting
+particles, a live clock, and captions of what you said and what FRIDAY replies.
+It reacts in real time to FRIDAY's actual state:
+
+| State | What you see |
+|---|---|
+| **Standby** | slow cyan breathing core |
+| **Listening** | green, expanding rings + reactive waveform |
+| **Processing** | amber, fast spin |
+| **Speaking** | cyan waveform pulses while the reply types out |
+
+**Click the core** (or say the wake word) to start talking. The HUD is served
+locally at `http://127.0.0.1:8760`; nothing leaves your machine. It's plain
+HTML/JS ([ui/index.html](ui/index.html)) driven over a WebSocket by
+[ui/server.py](ui/server.py), so you can restyle it freely.
 
 ---
 

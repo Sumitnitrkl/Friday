@@ -16,7 +16,8 @@ logger = logging.getLogger("FRIDAY")
 
 
 class Friday:
-    def __init__(self, config_path="config.yaml"):
+    def __init__(self, config_path="config.yaml", ui=None):
+        self.ui = ui                      # optional HUD server (see ui/server.py)
         self._load_config(config_path)
         self._setup_logging()
         logger.info("Initialising FRIDAY...")
@@ -32,8 +33,16 @@ class Friday:
         self._running  = False
 
     # ------------------------------------------------------------------ #
+    def _emit(self, **event):
+        """Push a state/caption event to the HUD (no-op if UI isn't running)."""
+        if self.ui:
+            try:
+                self.ui.emit(**event)
+            except Exception:
+                pass
+
     def _load_config(self, path):
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             self.cfg = yaml.safe_load(f)
 
     def _setup_logging(self):
@@ -64,7 +73,10 @@ class Friday:
             f"Hey there! Good {period}. Systems are up and I'm all ears.",
         ]
         import random
-        self.speaker.say(random.choice(greetings))
+        greeting = random.choice(greetings)
+        self._emit(type="friday", text=greeting)
+        self.speaker.say(greeting)
+        self._emit(state="standby")
 
     # ------------------------------------------------------------------ #
     def run(self):
@@ -81,30 +93,38 @@ class Friday:
             try:
                 self._announce_reminders()
 
-                if followups_left > 0:
-                    # No wake word needed for a couple of turns after a reply.
-                    print("[listening — follow-up]")
+                # Clicked the core in the HUD? Skip the wake word this turn.
+                clicked = self.ui.consume_activate() if self.ui else False
+
+                if followups_left > 0 or clicked:
+                    self._emit(type="listening")
+                    print("[listening]")
                     heard = self.listener.listen_active()
                     if not heard:
                         followups_left = 0
+                        self._emit(state="standby")
                         continue
                     command_text = self._extract_command(heard, wake_words)
                 else:
+                    self._emit(state="standby")
                     raw = self.listener.listen_passive()
                     if not raw or not any(w in raw.lower() for w in wake_words):
                         continue
                     logger.info(f"Wake word detected in: '{raw}'")
                     self.speaker.chime()
+                    self._emit(type="listening")
                     command_text = self._extract_command(raw, wake_words)
                     if not command_text:
                         self.speaker.say("Yeah? What do you need?")
                         command_text = self.listener.listen_active()
 
                 if not command_text:
+                    self._emit(state="standby")
                     continue
 
                 logger.info(f"Command: '{command_text}'")
                 print(f"[you] {command_text}")
+                self._emit(type="user", text=command_text)
                 if not self._handle_command(command_text):
                     break
                 followups_left = followup_window
@@ -113,6 +133,7 @@ class Friday:
                 break
             except Exception as e:
                 logger.error(f"Loop error: {e}", exc_info=True)
+                self._emit(state="standby")
                 self.speaker.say("Something went wrong on my end. Try again.")
 
     def _announce_reminders(self):
@@ -138,14 +159,21 @@ class Friday:
         low = text.lower().strip()
 
         if any(p in low for p in self.EXIT_PHRASES):
+            self._emit(type="friday", text="Going quiet. Say the wake word when you need me.")
             self.speaker.say("Okay, going quiet. Say the wake word when you need me.")
+            self._emit(state="standby")
             return False
         if low in ("reset", "new conversation", "forget everything"):
             self.brain.reset()
+            self._emit(type="friday", text="Fresh start — conversation cleared.")
             self.speaker.say("Fresh start — I've cleared our conversation.")
+            self._emit(state="standby")
             return True
 
+        self._emit(state="thinking")
         reply = self.brain.think(text)
         if reply:
+            self._emit(type="friday", text=reply)
             self.speaker.say(reply)
+        self._emit(state="standby")
         return True

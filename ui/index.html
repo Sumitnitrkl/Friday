@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FRIDAY</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --cyan:#38e8ff; --cyan-dim:#0ba5c9; --blue:#1560ff;
+    --bg:#01060f; --ink:#bfefff; --ok:#33ffa6; --warn:#ffcf47;
+    --glow:0 0 12px rgba(56,232,255,.8), 0 0 34px rgba(21,96,255,.5);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+    font-family:'Share Tech Mono',monospace;cursor:default;user-select:none}
+  #bg{position:fixed;inset:0;background:
+      radial-gradient(circle at 50% 45%, rgba(21,96,255,.14), transparent 60%),
+      radial-gradient(circle at 50% 120%, rgba(56,232,255,.10), transparent 55%),
+      #01060f;}
+  #grid{position:fixed;inset:0;opacity:.16;
+    background-image:linear-gradient(rgba(56,232,255,.35) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(56,232,255,.35) 1px,transparent 1px);
+    background-size:46px 46px;
+    mask:radial-gradient(circle at 50% 50%, #000 0%, transparent 72%);
+    -webkit-mask:radial-gradient(circle at 50% 50%, #000 0%, transparent 72%);
+    animation:gridpan 18s linear infinite}
+  @keyframes gridpan{from{background-position:0 0,0 0}to{background-position:46px 46px,46px 46px}}
+  #scan{position:fixed;inset:0;pointer-events:none;opacity:.35;
+    background:repeating-linear-gradient(transparent 0 3px, rgba(0,0,0,.25) 3px 4px)}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+
+  /* ---- HUD overlay ---- */
+  .hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+  .corner{position:absolute;width:74px;height:74px;border:2px solid rgba(56,232,255,.55);filter:drop-shadow(var(--glow))}
+  .tl{top:26px;left:26px;border-right:0;border-bottom:0}
+  .tr{top:26px;right:26px;border-left:0;border-bottom:0}
+  .bl{bottom:26px;left:26px;border-right:0;border-top:0}
+  .br{bottom:26px;right:26px;border-left:0;border-top:0}
+
+  .brand{position:absolute;top:40px;left:52px}
+  .brand h1{font-family:'Orbitron';font-weight:900;font-size:34px;letter-spacing:11px;
+    color:#eafcff;text-shadow:var(--glow)}
+  .brand p{font-size:12px;letter-spacing:5px;color:var(--cyan-dim);margin-top:4px}
+
+  .sysbox{position:absolute;top:44px;right:56px;text-align:right;font-size:12px;letter-spacing:2px;line-height:1.9;color:var(--cyan)}
+  .sysbox .clk{font-family:'Orbitron';font-size:22px;letter-spacing:3px;color:#eafcff;text-shadow:var(--glow)}
+  .sysbox b{color:var(--ok)}
+
+  .statuswrap{position:absolute;left:0;right:0;bottom:150px;text-align:center}
+  .status{display:inline-flex;align-items:center;gap:12px;font-family:'Orbitron';font-weight:700;
+    font-size:15px;letter-spacing:6px;padding:9px 22px;border:1px solid rgba(56,232,255,.4);
+    border-radius:40px;background:rgba(6,20,40,.55);color:#eafcff;text-shadow:var(--glow);
+    box-shadow:inset 0 0 20px rgba(21,96,255,.25), var(--glow)}
+  .dot{width:11px;height:11px;border-radius:50%;background:var(--cyan);box-shadow:var(--glow);animation:pulse 1.4s infinite}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+
+  .caption{position:absolute;left:0;right:0;bottom:66px;text-align:center;padding:0 12%}
+  .caption .you{font-size:15px;letter-spacing:2px;color:var(--cyan-dim);min-height:20px;margin-bottom:8px}
+  .caption .you span{color:var(--cyan)}
+  .caption .fri{font-size:21px;letter-spacing:1px;color:#eafcff;min-height:28px;text-shadow:0 0 10px rgba(56,232,255,.5)}
+  .cursor{display:inline-block;width:9px;height:19px;background:var(--cyan);margin-left:3px;
+    box-shadow:var(--glow);animation:blink .8s steps(1) infinite;vertical-align:middle}
+  @keyframes blink{50%{opacity:0}}
+
+  .hint{position:absolute;left:0;right:0;bottom:30px;text-align:center;font-size:11px;letter-spacing:4px;color:rgba(56,232,255,.45)}
+  .link{color:var(--cyan);opacity:.55;transition:opacity .3s}
+
+  /* connection flash */
+  #flash{position:fixed;inset:0;background:radial-gradient(circle,rgba(56,232,255,.22),transparent 60%);
+    opacity:0;pointer-events:none;z-index:4;transition:opacity .4s}
+  .booting .brand h1{animation:boot 2.2s ease-out}
+  @keyframes boot{0%{opacity:0;filter:blur(14px);letter-spacing:40px}100%{opacity:1;filter:blur(0)}}
+</style>
+</head>
+<body class="booting">
+  <div id="bg"></div>
+  <div id="grid"></div>
+  <canvas id="c"></canvas>
+  <div id="scan"></div>
+  <div id="flash"></div>
+
+  <div class="hud">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+
+    <div class="brand">
+      <h1>FRIDAY</h1>
+      <p>NEURAL INTERFACE // v2</p>
+    </div>
+
+    <div class="sysbox">
+      <div class="clk" id="clk">00:00:00</div>
+      <div id="dte">—</div>
+      <div>LINK <b id="link">OFFLINE</b></div>
+      <div>CORE <b>ONLINE</b></div>
+    </div>
+
+    <div class="statuswrap">
+      <div class="status"><span class="dot" id="dot"></span><span id="statustxt">STANDBY</span></div>
+    </div>
+
+    <div class="caption">
+      <div class="you" id="you"></div>
+      <div class="fri" id="fri"></div>
+    </div>
+
+    <div class="hint">CLICK THE CORE OR SAY <span class="link">“HEY FRIDAY”</span> TO SPEAK</div>
+  </div>
+
+<script>
+/* ============================ FRIDAY HUD ============================ */
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, CX, CY, DPR;
+function resize(){
+  DPR = Math.min(window.devicePixelRatio||1, 2);
+  W = canvas.width = innerWidth*DPR; H = canvas.height = innerHeight*DPR;
+  canvas.style.width=innerWidth+'px'; canvas.style.height=innerHeight+'px';
+  CX = W/2; CY = H/2; ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener('resize', resize); resize();
+
+const CYAN='#38e8ff', BLUE='#1560ff', WHITE='#eafcff';
+const TAU = Math.PI*2;
+
+// ---- state machine ----
+const STATES = {
+  standby:{label:'STANDBY',   color:CYAN, dot:CYAN,  intensity:0.35, spin:0.5, particles:0.4},
+  listening:{label:'LISTENING',color:'#4dffc3',dot:'#33ffa6',intensity:0.9, spin:1.1, particles:1.0},
+  thinking:{label:'PROCESSING',color:'#ffcf47',dot:'#ffcf47',intensity:1.0, spin:2.6, particles:1.4},
+  speaking:{label:'SPEAKING',  color:'#38e8ff',dot:'#38e8ff',intensity:1.0, spin:1.3, particles:1.1},
+  offline:{label:'LINK LOST',  color:'#ff5566',dot:'#ff5566',intensity:0.25,spin:0.3, particles:0.2},
+};
+let state='standby';
+let cur={intensity:0.35, spin:0.5, particles:0.4, r:0.22,g:0.9,b:1}; // eased values
+function setState(s){
+  if(!STATES[s]) return;
+  state=s;
+  document.getElementById('statustxt').textContent=STATES[s].label;
+  const c=STATES[s].color;
+  document.getElementById('dot').style.background=STATES[s].dot;
+  document.getElementById('statustxt').style.color=WHITE;
+}
+
+// ---- particles ----
+const particles=[];
+for(let i=0;i<120;i++){
+  const a=Math.random()*TAU, rad=90+Math.random()*220;
+  particles.push({a, rad, base:rad, spd:(0.2+Math.random()*0.8)*(Math.random()<.5?-1:1),
+    size:0.6+Math.random()*1.8, tw:Math.random()*TAU});
+}
+
+// ---- waveform samples ----
+const BARS=96; let wave=new Array(BARS).fill(0);
+let audioLvl=0; // 0..1 pseudo amplitude driven by state
+
+function hexToRgb(h){const n=parseInt(h.slice(1),16);return[(n>>16)&255,(n>>8)&255,n&255];}
+function lerp(a,b,t){return a+(b-a)*t}
+
+let t=0;
+function draw(){
+  t+=0.016;
+  const S=STATES[state];
+  // ease current values toward target
+  cur.intensity=lerp(cur.intensity,S.intensity,0.06);
+  cur.spin=lerp(cur.spin,S.spin,0.05);
+  cur.particles=lerp(cur.particles,S.particles,0.05);
+  const [tr,tg,tb]=hexToRgb(S.color);
+  cur.r=lerp(cur.r,tr/255,0.05); cur.g=lerp(cur.g,tg/255,0.05); cur.b=lerp(cur.b,tb/255,0.05);
+  const col=(a)=>`rgba(${Math.round(cur.r*255)},${Math.round(cur.g*255)},${Math.round(cur.b*255)},${a})`;
+
+  // target audio level per state
+  let targetLvl = state==='speaking' ? 0.55+0.45*Math.abs(Math.sin(t*7))
+                : state==='listening' ? 0.3+Math.random()*0.7
+                : state==='thinking' ? 0.4+Math.random()*0.5
+                : 0.12+0.06*Math.sin(t*1.5);
+  audioLvl=lerp(audioLvl,targetLvl,0.25);
+
+  ctx.clearRect(0,0,W/DPR,H/DPR);
+  const cx=innerWidth/2, cy=innerHeight/2;
+  const R = Math.min(innerWidth,innerHeight)*0.16;
+  ctx.save();
+  ctx.translate(cx,cy);
+
+  // outer glow
+  const glow=ctx.createRadialGradient(0,0,0,0,0,R*4.2);
+  glow.addColorStop(0,col(0.18*cur.intensity+0.05));
+  glow.addColorStop(0.5,col(0.05));
+  glow.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=glow; ctx.beginPath(); ctx.arc(0,0,R*4.2,0,TAU); ctx.fill();
+
+  ctx.lineCap='round';
+
+  // rotating arc rings
+  const rings=[
+    {r:R*1.35, w:2, seg:5, gap:0.55, dir:1,  sp:0.5},
+    {r:R*1.7,  w:3, seg:3, gap:0.9,  dir:-1, sp:0.32},
+    {r:R*2.15, w:1.5,seg:8, gap:0.28, dir:1,  sp:0.7},
+    {r:R*2.75, w:6, seg:2, gap:1.6,  dir:-1, sp:0.16},
+  ];
+  rings.forEach((rg,i)=>{
+    const rot=t*cur.spin*rg.sp*rg.dir;
+    ctx.strokeStyle=col(0.6*cur.intensity+0.15);
+    ctx.shadowColor=col(0.9); ctx.shadowBlur=14; ctx.lineWidth=rg.w;
+    for(let s=0;s<rg.seg;s++){
+      const a0=rot + s*(TAU/rg.seg);
+      ctx.beginPath(); ctx.arc(0,0,rg.r,a0,a0+(TAU/rg.seg)-rg.gap); ctx.stroke();
+    }
+  });
+  ctx.shadowBlur=0;
+
+  // tick ring
+  const tickR=R*2.4, ticks=72;
+  for(let i=0;i<ticks;i++){
+    const a=i/ticks*TAU + t*0.05;
+    const big=i%6===0; const l=big?10:5;
+    ctx.strokeStyle=col(big?0.5:0.22); ctx.lineWidth=big?2:1;
+    ctx.beginPath();
+    ctx.moveTo(Math.cos(a)*tickR, Math.sin(a)*tickR);
+    ctx.lineTo(Math.cos(a)*(tickR+l), Math.sin(a)*(tickR+l));
+    ctx.stroke();
+  }
+
+  // circular waveform
+  const waveR=R*1.02;
+  ctx.strokeStyle=col(0.85); ctx.shadowColor=col(1); ctx.shadowBlur=16; ctx.lineWidth=2;
+  ctx.beginPath();
+  for(let i=0;i<=BARS;i++){
+    const idx=i%BARS;
+    const target = audioLvl * (0.4+Math.abs(Math.sin(idx*0.5+t*4))*0.6);
+    wave[idx]=lerp(wave[idx], target, 0.3);
+    const amp = R*0.28*wave[idx];
+    const a=idx/BARS*TAU;
+    const rr=waveR+amp;
+    const x=Math.cos(a)*rr, y=Math.sin(a)*rr;
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath(); ctx.stroke(); ctx.shadowBlur=0;
+
+  // particles
+  particles.forEach(p=>{
+    p.a += p.spd*0.004*cur.spin;
+    const pull = state==='listening'? -18*Math.sin(t*3):0;
+    const r = p.base*(0.6+cur.particles*0.5) + pull + Math.sin(t*2+p.tw)*6;
+    const x=Math.cos(p.a)*r, y=Math.sin(p.a)*r;
+    const tw=0.4+0.6*Math.abs(Math.sin(t*3+p.tw));
+    ctx.fillStyle=col(0.7*tw);
+    ctx.beginPath(); ctx.arc(x,y,p.size,0,TAU); ctx.fill();
+  });
+
+  // core sphere
+  const pulse = 1+0.06*Math.sin(t*3)*cur.intensity + audioLvl*0.12;
+  const coreR=R*0.62*pulse;
+  const core=ctx.createRadialGradient(0,0,0,0,0,coreR);
+  core.addColorStop(0,'rgba(255,255,255,'+(0.95*cur.intensity+0.3)+')');
+  core.addColorStop(0.35,col(0.85));
+  core.addColorStop(0.75,col(0.35));
+  core.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=core; ctx.shadowColor=col(1); ctx.shadowBlur=40;
+  ctx.beginPath(); ctx.arc(0,0,coreR,0,TAU); ctx.fill();
+  ctx.shadowBlur=0;
+
+  // inner rotating iris
+  ctx.strokeStyle='rgba(255,255,255,'+(0.5*cur.intensity)+')'; ctx.lineWidth=1.5;
+  for(let i=0;i<3;i++){
+    const a=t*cur.spin*(i%2?-1:1)*0.8 + i*2;
+    ctx.beginPath(); ctx.arc(0,0,R*0.34+i*4, a, a+2.1); ctx.stroke();
+  }
+
+  ctx.restore();
+  requestAnimationFrame(draw);
+}
+draw();
+
+// ---- clock ----
+function tick(){
+  const d=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  document.getElementById('clk').textContent=`${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+  document.getElementById('dte').textContent=d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'}).toUpperCase();
+}
+setInterval(tick,1000); tick();
+setTimeout(()=>document.body.classList.remove('booting'),2400);
+
+// ---- captions (typewriter) ----
+const youEl=document.getElementById('you'), friEl=document.getElementById('fri');
+function setYou(txt){ youEl.innerHTML = txt? 'YOU&nbsp;›&nbsp;<span>'+esc(txt)+'</span>':''; }
+let typeTimer=null;
+function typeFri(txt){
+  clearInterval(typeTimer); friEl.textContent='';
+  let i=0; const cur=document.createElement('span'); cur.className='cursor';
+  friEl.appendChild(cur);
+  typeTimer=setInterval(()=>{
+    if(i>=txt.length){clearInterval(typeTimer); return;}
+    cur.insertAdjacentText('beforebegin', txt[i]); i++;
+  },22);
+}
+function esc(s){return s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));}
+
+// ---- flash on transitions ----
+const flash=document.getElementById('flash');
+function doFlash(){flash.style.opacity=.9;setTimeout(()=>flash.style.opacity=0,120);}
+
+// ---- WebSocket link to FRIDAY ----
+const WS_PORT = 8761;
+let ws=null;
+function connect(){
+  try{ ws=new WebSocket(`ws://${location.hostname||'localhost'}:${WS_PORT}`);}catch(e){return offline();}
+  ws.onopen=()=>{document.getElementById('link').textContent='ONLINE';
+    document.getElementById('link').style.color='var(--ok)'; setState('standby'); doFlash();};
+  ws.onclose=()=>{offline(); setTimeout(connect,1500);};
+  ws.onerror=()=>{try{ws.close();}catch(e){}};
+  ws.onmessage=(ev)=>{
+    let m; try{m=JSON.parse(ev.data);}catch(e){return;}
+    if(m.type==='state'){ setState(m.state); doFlash(); }
+    else if(m.type==='user'){ setState('thinking'); setYou(m.text); }
+    else if(m.type==='friday'){ setState('speaking'); typeFri(m.text); }
+    else if(m.type==='listening'){ setState('listening'); setYou(''); friEl.textContent=''; }
+    else if(m.type==='standby'){ setState('standby'); }
+  };
+}
+function offline(){
+  document.getElementById('link').textContent='OFFLINE';
+  document.getElementById('link').style.color='var(--warn)';
+  setState('offline');
+}
+connect();
+
+// ---- click core to talk ----
+addEventListener('click',(e)=>{
+  const cx=innerWidth/2, cy=innerHeight/2, R=Math.min(innerWidth,innerHeight)*0.16;
+  if(Math.hypot(e.clientX-cx,e.clientY-cy) < R*2.9){
+    if(ws && ws.readyState===1){ ws.send(JSON.stringify({type:'activate'})); doFlash(); setState('listening'); }
+  }
+});
+</script>
+</body>
+</html>
