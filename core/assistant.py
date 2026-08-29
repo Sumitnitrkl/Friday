@@ -82,12 +82,18 @@ class Friday:
     def run(self):
         """Main loop — listen → understand → act → speak"""
         self._running = True
-        wake_words = [w.lower() for w in self.cfg["assistant"]["wake_words"]]
-        followup_window = self.cfg["assistant"].get("followup_window", 2)
+        acfg = self.cfg["assistant"]
+        wake_words = [w.lower() for w in acfg["wake_words"]]
+        always = acfg.get("always_listening", False)
+        followup_window = acfg.get("followup_window", 2)
         followups_left = 0
 
-        logger.info(f"Listening for wake words: {wake_words}")
-        print(f"\nListening for: {wake_words}\n")
+        if always:
+            logger.info("Continuous listening mode — no wake word needed")
+            print("\nContinuous listening — just talk (say 'stop listening' to pause)\n")
+        else:
+            logger.info(f"Listening for wake words: {wake_words}")
+            print(f"\nListening for: {wake_words}\n")
 
         while self._running:
             try:
@@ -96,15 +102,17 @@ class Friday:
                 # Clicked the core in the HUD? Skip the wake word this turn.
                 clicked = self.ui.consume_activate() if self.ui else False
 
-                if followups_left > 0 or clicked:
+                if always or followups_left > 0 or clicked:
+                    # Listen for a command directly — no wake word required.
                     self._emit(type="listening")
                     print("[listening]")
                     heard = self.listener.listen_active()
                     if not heard:
-                        followups_left = 0
-                        self._emit(state="standby")
+                        if not always:
+                            followups_left = 0
+                            self._emit(state="standby")
                         continue
-                    command_text = self._extract_command(heard, wake_words)
+                    command_text = self._clean(heard, wake_words)
                 else:
                     self._emit(state="standby")
                     raw = self.listener.listen_passive()
@@ -116,10 +124,12 @@ class Friday:
                     command_text = self._extract_command(raw, wake_words)
                     if not command_text:
                         self.speaker.say("Yeah? What do you need?")
-                        command_text = self.listener.listen_active()
+                        heard = self.listener.listen_active()
+                        command_text = self._clean(heard, wake_words) if heard else ""
 
                 if not command_text:
-                    self._emit(state="standby")
+                    if not always:
+                        self._emit(state="standby")
                     continue
 
                 logger.info(f"Command: '{command_text}'")
@@ -142,12 +152,22 @@ class Friday:
 
     # ------------------------------------------------------------------ #
     def _extract_command(self, utterance: str, wake_words: list) -> str:
-        """Strip wake word prefix and return remaining command text."""
+        """Wake-word path: strip the wake word; '' if nothing else was said."""
         text = utterance.lower()
         for w in wake_words:
             if text.startswith(w):
                 return utterance[len(w):].strip(" ,.")
         return ""
+
+    def _clean(self, utterance: str, wake_words: list) -> str:
+        """Follow-up / always-on path: use the whole command, only trimming a
+        wake word if the user happened to say one. Never returns empty for real speech."""
+        t = utterance.strip()
+        low = t.lower()
+        for w in sorted(wake_words, key=len, reverse=True):
+            if low.startswith(w):
+                return t[len(w):].strip(" ,.!?")
+        return t
 
     EXIT_PHRASES = ("stop listening", "go to sleep", "goodbye friday", "shut yourself down")
 

@@ -6,7 +6,10 @@ assistant:
     - "hey friday"
     - "friday"
     - "ok friday"
-  followup_window: 2            # turns you can speak without repeating the wake word
+  # always_listening: true  -> no wake word ever; FRIDAY acts on everything it hears.
+  # always_listening: false -> say a wake word, then follow-ups for a few turns.
+  always_listening: true
+  followup_window: 2            # (used only when always_listening is false)
 
 voice:
   # TTS engine priority: edge_tts (online, natural neural) -> pyttsx3 (offline)
