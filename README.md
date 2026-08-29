@@ -14,6 +14,8 @@ several in one request ("open Chrome **and** tell me the weather").
 | Category | Examples |
 |---|---|
 | **Apps** | "open WhatsApp" · "close Spotify" · "launch VS Code" (opens Store apps too) |
+| **WhatsApp** | "add contact mom 919876543210" · "message mom I'm on my way" (opens the chat and sends it) |
+| **Music** | "play Blinding Lights on YouTube" · "play some lofi on Spotify" · "play some music" (replays from your history) |
 | **Web & info** | "search the web for the iPhone 16 price" · "what's the weather in Delhi?" · "what time is it?" |
 | **System** | "set volume to 40" · "mute" · "brightness up" · "turn wifi off" · "battery status" |
 | **Media** | "play" · "pause" · "next track" |

@@ -7,11 +7,15 @@ Most functions delegate to FRIDAY's existing cross-platform skill modules
 (apps/system/filesystem/browser/media_info_terminal); a few are new helpers.
 """
 import os
+import re
 import json
+import time
 import platform
 import threading
+import subprocess
 import webbrowser
 import datetime
+from urllib.parse import quote
 
 # Existing FRIDAY skill implementations (params-dict style) that we wrap.
 from skills import apps as _apps
@@ -26,6 +30,10 @@ DATA_DIR = os.path.join(os.path.expanduser("~"), ".friday", "data")
 os.makedirs(DATA_DIR, exist_ok=True)
 TODO_FILE = os.path.join(DATA_DIR, "todos.json")
 NOTES_FILE = os.path.join(DATA_DIR, "notes.txt")
+CONTACTS_FILE = os.path.join(DATA_DIR, "contacts.json")
+MUSIC_FILE = os.path.join(DATA_DIR, "music_history.json")
+
+WHATSAPP_SEND_DELAY = 7   # seconds to let the chat load before pressing Enter
 
 # Reminders that come due are queued here; the main loop speaks them.
 due_reminders: list[str] = []
@@ -255,6 +263,142 @@ def take_note(text: str) -> str:
     return "Noted."
 
 
+# ── WhatsApp messaging (contacts + auto-send) ────────────────────────────────
+
+def _open_uri(uri: str):
+    if OS == "Windows":
+        subprocess.Popen(f'start "" "{uri}"', shell=True)
+    elif OS == "Darwin":
+        subprocess.Popen(["open", uri])
+    else:
+        subprocess.Popen(["xdg-open", uri])
+
+
+def _load_contacts() -> dict:
+    if os.path.exists(CONTACTS_FILE):
+        try:
+            return json.loads(open(CONTACTS_FILE, encoding="utf-8").read())
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_contacts(c: dict):
+    open(CONTACTS_FILE, "w", encoding="utf-8").write(json.dumps(c, indent=2))
+
+
+def _resolve_contact(contact: str):
+    name = contact.strip().lower()
+    contacts = _load_contacts()
+    if name in contacts:
+        return contacts[name]
+    digits = "".join(ch for ch in contact if ch.isdigit())
+    return digits or None
+
+
+def add_contact(name: str, phone: str) -> str:
+    """Save a WhatsApp contact so you can message them by name later.
+    The phone number MUST include the country code, e.g. 919876543210."""
+    number = "".join(ch for ch in phone if ch.isdigit())
+    if len(number) < 7:
+        return "That doesn't look like a valid phone number — include the country code."
+    contacts = _load_contacts()
+    contacts[name.strip().lower()] = number
+    _save_contacts(contacts)
+    return f"Saved {name} as {number}."
+
+
+def list_contacts() -> str:
+    """List the saved WhatsApp contacts."""
+    contacts = _load_contacts()
+    if not contacts:
+        return "You have no saved contacts yet."
+    return "Contacts: " + ", ".join(f"{k} ({v})" for k, v in contacts.items())
+
+
+def send_whatsapp(contact: str, message: str) -> str:
+    """Send a WhatsApp message to a saved contact name or a phone number (with
+    country code). Opens the chat with the message and sends it automatically."""
+    number = _resolve_contact(contact)
+    if not number:
+        return (f"I don't have a number for {contact}. "
+                f"Say: add contact {contact} followed by their number with country code.")
+    _open_uri(f"whatsapp://send?phone={number}&text={quote(message)}")
+    try:
+        import pyautogui
+        time.sleep(WHATSAPP_SEND_DELAY)   # wait for the chat to load
+        pyautogui.press("enter")
+        return f"Message sent to {contact}."
+    except Exception as e:
+        return f"I opened the chat with your message, but couldn't auto-send ({e}). Just press Enter."
+
+
+# ── Music (YouTube auto-play / Spotify) ──────────────────────────────────────
+
+def _load_music() -> list:
+    if os.path.exists(MUSIC_FILE):
+        try:
+            return json.loads(open(MUSIC_FILE, encoding="utf-8").read())
+        except Exception:
+            return []
+    return []
+
+
+def _record_music(song: str, platform_name: str):
+    hist = _load_music()
+    hist.append({"song": song, "platform": platform_name,
+                 "ts": datetime.datetime.now().isoformat(timespec="seconds")})
+    open(MUSIC_FILE, "w", encoding="utf-8").write(json.dumps(hist[-100:], indent=2))
+
+
+def _youtube_first_video(query: str):
+    import requests
+    r = requests.get("https://www.youtube.com/results?search_query=" + quote(query),
+                     headers={"User-Agent": "Mozilla/5.0"}, timeout=8)
+    ids = re.findall(r'"videoId":"([\w-]{11})"', r.text)
+    return ids[0] if ids else None
+
+
+def play_on_youtube(song: str) -> str:
+    """Play a song, artist, or video on YouTube by name — auto-plays the first
+    result in the browser. Use when the user says to play something on YouTube."""
+    vid = None
+    try:
+        vid = _youtube_first_video(song)
+    except Exception:
+        pass
+    if vid:
+        webbrowser.open(f"https://www.youtube.com/watch?v={vid}")
+    else:
+        webbrowser.open("https://www.youtube.com/results?search_query=" + quote(song))
+    _record_music(song, "youtube")
+    return f"Playing {song} on YouTube."
+
+
+def play_on_spotify(song: str) -> str:
+    """Open a song or artist in the Spotify app by name (ready to play). Use when
+    the user says to play something on Spotify. Note: true auto-play of a specific
+    track requires Spotify Premium."""
+    try:
+        _open_uri(f"spotify:search:{quote(song)}")
+    except Exception as e:
+        return f"Could not open Spotify: {e}"
+    _record_music(song, "spotify")
+    return f"Opening {song} on Spotify for you."
+
+
+def play_recent_music() -> str:
+    """Play music from what was played before, for when the user asks to just
+    'play some music' or 'play something' without naming a song."""
+    import random
+    hist = _load_music()
+    if not hist:
+        return "I don't know your taste yet — tell me a song to play and I'll remember it."
+    pick = random.choice(hist[-10:])
+    song, platform_name = pick["song"], pick.get("platform", "youtube")
+    return play_on_spotify(song) if platform_name == "spotify" else play_on_youtube(song)
+
+
 # Everything Gemini is allowed to call:
 ALL_TOOLS = [
     # apps
@@ -272,4 +416,7 @@ ALL_TOOLS = [
     run_command,
     # productivity
     set_reminder, add_todo, list_todos, clear_todos, take_note,
+    # messaging + music control
+    add_contact, list_contacts, send_whatsapp,
+    play_on_youtube, play_on_spotify, play_recent_music,
 ]
