@@ -28,6 +28,11 @@ psutil>=5.9              # process mgmt + battery/CPU status
 pyautogui>=0.9.54        # media keys, screenshots, typing
 ddgs>=6.0.0              # free web search (text results)
 
+# Voice ID — only obey the enrolled user (lightweight, offline)
+numpy>=1.24
+scipy>=1.10
+python_speech_features>=0.6
+
 # Windows-only (install only on Windows)
 # pycaw>=20230407        # Windows volume control: pip install pycaw
 # comtypes               # required by pycaw

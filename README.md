@@ -60,6 +60,24 @@ Wait for "FRIDAY online", then say: **"Hey FRIDAY, what can you do?"**
 
 ---
 
+## 🔐 Voice ID — only obey *you* (`--enroll`)
+
+FRIDAY can verify it's really you before acting. Turn on `security.voice_id` in
+`config.yaml` (on by default), then enroll your voice once:
+```bash
+python main.py --enroll
+```
+It records a few short phrases and saves a private **voiceprint** (to
+`~/.friday/data/voiceprint.npy`, never uploaded). After that, anyone whose voice
+doesn't match is silently ignored — great for continuous-listening mode.
+
+- **Ignoring you?** Lower `security.voice_threshold` (e.g. 0.72).
+- **Obeying others?** Raise it (e.g. 0.85).
+- It's a lightweight MFCC-based verifier (offline, no heavy ML). Very good at
+  telling apart clearly different voices; tune the threshold for close ones.
+
+---
+
 ## 🖥️ The Holographic HUD (`--ui`)
 
 Run with `--ui` and FRIDAY opens a cinematic JARVIS-style interface in your

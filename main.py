@@ -26,6 +26,12 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, handle_exit)
     signal.signal(signal.SIGTERM, handle_exit)
 
+    # One-time voice enrollment: python main.py --enroll
+    if "--enroll" in sys.argv:
+        from core.voiceid import enroll_interactive
+        enroll_interactive()
+        sys.exit(0)
+
     ui = None
     if "--ui" in sys.argv:
         from ui.server import UIServer

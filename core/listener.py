@@ -13,7 +13,23 @@ class Listener:
         self.scfg = cfg["speech"]
         self._sr  = None
         self._mic_ok = False
+        self._voiceid = None
+        self._init_voiceid()
         self._init()
+
+    def _init_voiceid(self):
+        sec = self.cfg.get("security", {}) or {}
+        if not sec.get("voice_id"):
+            return
+        try:
+            from core.voiceid import VoiceID
+            self._voiceid = VoiceID(threshold=sec.get("voice_threshold", 0.80))
+            if self._voiceid.enrolled():
+                logger.info("Voice ID active — only the enrolled voice will be obeyed")
+            else:
+                logger.info("Voice ID is ON but no voiceprint yet — run: python main.py --enroll")
+        except Exception as e:
+            logger.warning(f"Voice ID unavailable ({e}); obeying all voices")
 
     # ------------------------------------------------------------------ #
     def _init(self):
@@ -63,6 +79,12 @@ class Listener:
         except Exception as e:
             logger.error(f"Audio capture error: {e}")
             return ""
+
+        # Voice ID gate — ignore anyone who isn't the enrolled user.
+        if self._voiceid and self._voiceid.enrolled():
+            if not self._voiceid.verify(audio.get_wav_data()):
+                logger.info("Ignored speech — voice did not match the enrolled user")
+                return ""
 
         try:
             text = self._recognizer.recognize_google(audio)
