@@ -306,12 +306,12 @@ function doFlash(){flash.style.opacity=.9;setTimeout(()=>flash.style.opacity=0,1
 
 // ---- WebSocket link to FRIDAY ----
 const WS_PORT = 8761;
-let ws=null;
+let ws=null, connected=false;
+function linkText(t,c){const el=document.getElementById('link');el.textContent=t;el.style.color=c;}
 function connect(){
   try{ ws=new WebSocket(`ws://${location.hostname||'localhost'}:${WS_PORT}`);}catch(e){return offline();}
-  ws.onopen=()=>{document.getElementById('link').textContent='ONLINE';
-    document.getElementById('link').style.color='var(--ok)'; setState('standby'); doFlash();};
-  ws.onclose=()=>{offline(); setTimeout(connect,1500);};
+  ws.onopen=()=>{connected=true; stopDemo(); linkText('ONLINE','var(--ok)'); setState('standby'); setYou(''); friEl.textContent=''; doFlash();};
+  ws.onclose=()=>{connected=false; offline(); setTimeout(connect,1500);};
   ws.onerror=()=>{try{ws.close();}catch(e){}};
   ws.onmessage=(ev)=>{
     let m; try{m=JSON.parse(ev.data);}catch(e){return;}
@@ -322,12 +322,39 @@ function connect(){
     else if(m.type==='standby'){ setState('standby'); }
   };
 }
-function offline(){
-  document.getElementById('link').textContent='OFFLINE';
-  document.getElementById('link').style.color='var(--warn)';
-  setState('offline');
+function offline(){ linkText('OFFLINE','var(--warn)'); startDemo(); }
+
+// ---- self-running demo (until the backend connects) ----
+const demoSeq=[
+  {s:'standby',  y:'', f:'', d:2600},
+  {s:'listening',y:'', f:'', d:2000},
+  {s:'thinking', y:"what's the weather in Delhi", f:'', d:1400},
+  {s:'speaking', y:"what's the weather in Delhi", f:"It's 33 degrees and clear in Delhi right now, creator.", d:4200},
+  {s:'standby',  y:'', f:'', d:1600},
+  {s:'listening',y:'', f:'', d:2000},
+  {s:'thinking', y:'open whatsapp and play some music', f:'', d:1400},
+  {s:'speaking', y:'open whatsapp and play some music', f:'Opening WhatsApp and starting your music now.', d:4200},
+  {s:'standby',  y:'', f:'', d:1600},
+  {s:'listening',y:'', f:'', d:2000},
+  {s:'thinking', y:'remind me in 20 minutes to join standup', f:'', d:1400},
+  {s:'speaking', y:'remind me in 20 minutes to join standup', f:"Okay, I'll remind you in twenty minutes.", d:4000},
+];
+let demoOn=false, demoIx=0, demoTO=null;
+function startDemo(){ if(demoOn||connected) return; demoOn=true; demoStep(); }
+function stopDemo(){ demoOn=false; clearTimeout(demoTO); }
+function demoStep(){
+  if(!demoOn||connected) return;
+  const st=demoSeq[demoIx++ % demoSeq.length];
+  if(st.s==='listening'){ setState('listening'); setYou(''); friEl.textContent=''; }
+  else if(st.s==='thinking'){ setState('thinking'); if(st.y) setYou(st.y); }
+  else if(st.s==='speaking'){ setState('speaking'); if(st.y) setYou(st.y); if(st.f) typeFri(st.f); }
+  else { setState('standby'); }
+  doFlash();
+  demoTO=setTimeout(demoStep, st.d);
 }
+
 connect();
+setTimeout(()=>{ if(!connected) startDemo(); }, 2500);  // show life even with no backend
 
 // ---- click core to talk ----
 addEventListener('click',(e)=>{
