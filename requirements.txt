@@ -4,41 +4,34 @@
 # Core
 pyyaml>=6.0
 requests>=2.31
-python-dotenv>=1.0   # loads API keys (GROQ_API_KEY etc.) from a .env file
+python-dotenv>=1.0        # loads GEMINI_API_KEY from a .env file
 
-# Speech-to-Text (offline)
-openai-whisper>=20231117
-imageio-ffmpeg>=0.4.9   # bundles the ffmpeg binary Whisper needs (no system install required)
-# Also requires: pip install setuptools-rust
+# Brain — Google Gemini with function calling (free)
+google-genai>=1.0.0
 
-# Speech Recognition (microphone input)
+# Speech-to-Text (SpeechRecognition + Google's free recognizer; needs internet)
 SpeechRecognition>=3.10
 pyaudio>=0.2.13
 # macOS: brew install portaudio then pip install pyaudio
 # Windows: pip install pipwin && pipwin install pyaudio
 
 # Text-to-Speech
-edge-tts>=6.1.9       # online, Microsoft Neural voices (recommended)
-pyttsx3>=2.90         # offline fallback
+edge-tts>=6.1.9          # online Microsoft Neural voices (natural)
+pyttsx3>=2.90            # offline fallback
+pygame>=2.5.0            # plays the neural-voice audio (no ffmpeg needed)
 
-# AI Backend (online)
-anthropic>=0.20       # Claude API
-
-# System control
-psutil>=5.9           # process management
-
-# App automation
-pyautogui>=0.9.54     # GUI automation, media keys (Windows)
+# Skills / tools
+psutil>=5.9              # process mgmt + battery/CPU status
+pyautogui>=0.9.54        # media keys, screenshots, typing
+ddgs>=6.0.0              # free web search (text results)
 
 # Windows-only (install only on Windows)
-# pycaw>=20230407     # Windows volume control: pip install pycaw
-# wmi>=1.5.1          # Windows WMI for brightness
+# pycaw>=20230407        # Windows volume control: pip install pycaw
+# comtypes               # required by pycaw
+# wmi>=1.5.1             # Windows WMI for brightness
 
 # macOS-only (install via brew, not pip)
 # brew install blueutil      → bluetooth control
 # brew install brightness    → display brightness
-# brew install ffmpeg        → audio playback for edge-tts
-# brew install mpg123        → mp3 playback fallback
 
-# Optional: local AI (no internet needed)
-# Install Ollama from https://ollama.ai then: ollama pull llama3
+# Optional: nircmd on Windows for volume fallback

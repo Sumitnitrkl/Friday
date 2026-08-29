@@ -8,13 +8,9 @@ import sys
 import signal
 import threading
 
-# Load .env (API keys like GROQ_API_KEY) before anything reads the environment.
+# Load .env (API keys like GEMINI_API_KEY) before anything reads the environment.
 from dotenv import load_dotenv
 load_dotenv()
-
-# Ensure a bundled ffmpeg is on PATH before Whisper loads (fixes STT [WinError 2]).
-from utils.ffmpeg_setup import ensure_ffmpeg_on_path
-ensure_ffmpeg_on_path()
 
 from core.assistant import Friday
 

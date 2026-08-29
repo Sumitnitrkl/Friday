@@ -1,1 +1,0 @@
-from skills.media_info_terminal import run_command

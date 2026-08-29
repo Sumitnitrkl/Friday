@@ -1,114 +1,72 @@
 """
-FRIDAY Listener — Speech-to-Text
-Primary:  OpenAI Whisper (local, offline)
-Fallback: SpeechRecognition + Google (online)
+FRIDAY Listener — Speech-to-Text via SpeechRecognition + Google's free recognizer.
+No Whisper/ffmpeg needed; needs internet. Falls back to keyboard if no microphone.
 """
-
 import logging
-import queue
-import threading
-import tempfile
-import os
 
 logger = logging.getLogger("FRIDAY.Listener")
 
 
 class Listener:
     def __init__(self, cfg: dict):
-        self.cfg     = cfg
-        self.scfg    = cfg["speech"]
-        self.engine  = self.scfg.get("stt_engine", "whisper")
-        self._whisper_model = None
-        self._sr     = None
-        self._mic    = None
-        self._init_engines()
+        self.cfg  = cfg
+        self.scfg = cfg["speech"]
+        self._sr  = None
+        self._mic_ok = False
+        self._init()
 
     # ------------------------------------------------------------------ #
-    def _init_engines(self):
+    def _init(self):
         try:
             import speech_recognition as sr
-            self._sr  = sr
-            self._mic = sr.Microphone()
-            logger.info("SpeechRecognition microphone ready")
+            self._sr = sr
+            self._recognizer = sr.Recognizer()
+            self._recognizer.energy_threshold = self.scfg.get("energy_threshold", 300)
+            self._recognizer.dynamic_energy_threshold = True
+            self._recognizer.pause_threshold = 0.8
+            # Probe + calibrate the mic once.
+            with sr.Microphone() as source:
+                logger.info("Calibrating microphone for ambient noise…")
+                self._recognizer.adjust_for_ambient_noise(source, duration=1.0)
+            self._mic_ok = True
+            logger.info("Microphone ready (Google STT)")
         except ImportError:
             logger.warning("speech_recognition not installed — pip install SpeechRecognition pyaudio")
-
-        if self.engine == "whisper":
-            try:
-                import whisper
-                model_size = self.scfg.get("whisper_model", "base")
-                logger.info(f"Loading Whisper model: {model_size} …")
-                self._whisper_model = whisper.load_model(model_size)
-                logger.info("Whisper model loaded")
-            except ImportError:
-                logger.warning("whisper not installed — pip install openai-whisper")
-                self.engine = "google"
+        except Exception as e:
+            logger.warning(f"Microphone unavailable ({e}) — falling back to keyboard input")
 
     # ------------------------------------------------------------------ #
     def listen_passive(self) -> str:
-        """Lightweight always-on listen — just detects speech and returns text."""
-        return self._capture_audio(timeout=None, phrase_timeout=3)
+        """Short listen used to catch the wake word."""
+        return self._capture(timeout=5, phrase_limit=6)
 
     def listen_active(self) -> str:
-        """Active listen after wake word — longer phrase timeout."""
-        timeout      = self.scfg.get("listen_timeout", 8)
-        phrase_timeout = self.scfg.get("phrase_timeout", 3)
-        return self._capture_audio(timeout=timeout, phrase_timeout=phrase_timeout)
+        """Longer listen after the wake word, for the actual command."""
+        return self._capture(
+            timeout=self.scfg.get("listen_timeout", 8),
+            phrase_limit=self.scfg.get("phrase_time_limit", 15),
+        )
 
     # ------------------------------------------------------------------ #
-    def _capture_audio(self, timeout, phrase_timeout) -> str:
-        if not self._sr or not self._mic:
-            return self._fallback_input()
+    def _capture(self, timeout, phrase_limit) -> str:
+        if not self._mic_ok:
+            return self._keyboard()
 
         sr = self._sr
         try:
-            with self._mic as source:
-                self._sr.Recognizer().adjust_for_ambient_noise(source, duration=0.3)
-                r = sr.Recognizer()
-                r.energy_threshold = self.scfg.get("energy_threshold", 300)
-                r.dynamic_energy_threshold = True
-                audio = r.listen(source, timeout=timeout,
-                                  phrase_time_limit=phrase_timeout)
-
-            return self._transcribe(audio)
-
+            with sr.Microphone() as source:
+                audio = self._recognizer.listen(
+                    source, timeout=timeout, phrase_time_limit=phrase_limit
+                )
         except sr.WaitTimeoutError:
             return ""
         except Exception as e:
             logger.error(f"Audio capture error: {e}")
             return ""
 
-    # ------------------------------------------------------------------ #
-    def _transcribe(self, audio) -> str:
-        """Transcribe AudioData using Whisper or Google fallback."""
-        if self._whisper_model:
-            return self._transcribe_whisper(audio)
-        return self._transcribe_google(audio)
-
-    def _transcribe_whisper(self, audio) -> str:
-        import whisper, numpy as np, io, wave
-        sr = self._sr
         try:
-            wav_data = audio.get_wav_data()
-            with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
-                f.write(wav_data)
-                tmp_path = f.name
-
-            result = self._whisper_model.transcribe(tmp_path, language="en", fp16=False)
-            os.unlink(tmp_path)
-            text = result.get("text", "").strip()
-            logger.debug(f"Whisper: '{text}'")
-            return text
-        except Exception as e:
-            logger.warning(f"Whisper failed, trying Google: {e}")
-            return self._transcribe_google(audio)
-
-    def _transcribe_google(self, audio) -> str:
-        sr = self._sr
-        try:
-            text = sr.Recognizer().recognize_google(audio)
-            logger.debug(f"Google STT: '{text}'")
-            return text
+            text = self._recognizer.recognize_google(audio)
+            return (text or "").strip()
         except sr.UnknownValueError:
             return ""
         except sr.RequestError as e:
@@ -116,9 +74,8 @@ class Listener:
             return ""
 
     # ------------------------------------------------------------------ #
-    def _fallback_input(self) -> str:
-        """Keyboard fallback when microphone is unavailable."""
+    def _keyboard(self) -> str:
         try:
-            return input("Type command: ")
+            return input("Type command: ").strip()
         except (EOFError, KeyboardInterrupt):
             return ""

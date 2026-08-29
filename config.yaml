@@ -6,7 +6,7 @@ assistant:
     - "hey friday"
     - "friday"
     - "ok friday"
-  personality: "warm_casual"    # FRIDAY style
+  followup_window: 2            # turns you can speak without repeating the wake word
 
 voice:
   # TTS engine priority: edge_tts (online, natural neural) -> pyttsx3 (offline)
@@ -21,29 +21,27 @@ voice:
   pyttsx3_volume: 1.0
 
 speech:
-  # STT engine priority: whisper (local) -> google (online fallback)
-  stt_engine: "whisper"         # whisper / google / vosk
-  whisper_model: "base"         # tiny / base / small / medium
-  listen_timeout: 8             # seconds to wait for speech
-  phrase_timeout: 3             # silence = end of phrase
-  energy_threshold: 300
+  # Speech-to-text via SpeechRecognition + Google's free recognizer (needs internet)
+  listen_timeout: 8             # seconds to wait for you to start speaking
+  phrase_time_limit: 15         # max seconds captured per command
+  energy_threshold: 300         # mic sensitivity: raise if it hears noise, lower if it misses you
 
 ai:
-  # AI backend priority: online (gemini / groq / claude_api) -> ollama -> rule-based
-  online_backend: "gemini"      # gemini = FREE (Google AI Studio), no credit card
-  offline_backend: "ollama"
-  # Gemini — FREE. Get a key at https://aistudio.google.com/apikey
-  # Put the key in a .env file as GEMINI_API_KEY (keeps it out of git) — NOT here.
-  gemini_model: "gemini-3.6-flash"        # current free flash model
+  # Brain: Google Gemini with function calling (FREE at https://aistudio.google.com/apikey)
+  # Put the key in .env as GEMINI_API_KEY (gitignored) — NOT here.
+  # flash-lite: fast + more generous free rate limit (good for voice).
+  # For smarter (but stricter-limited) replies try: gemini-2.5-flash / gemini-3.6-flash
+  gemini_model: "gemini-3.5-flash-lite"
   gemini_api_key: ""
-  # Groq — also FREE (https://console.groq.com/keys)
-  groq_model: "llama-3.3-70b-versatile"   # or "llama-3.1-8b-instant" (faster)
-  groq_api_key: ""
-  claude_model: "claude-sonnet-5"
-  ollama_model: "llama3"        # run: ollama pull llama3
-  max_tokens: 500
-  # API keys belong in .env (gitignored): GROQ_API_KEY / ANTHROPIC_API_KEY
-  claude_api_key: ""
+  # How FRIDAY talks + behaves. Edit freely to change her personality.
+  personality: >
+    You are FRIDAY, a warm, friendly, and capable AI voice assistant running on
+    your creator's personal computer. Speak naturally and warmly, like a helpful
+    friend. Keep replies SHORT (1-2 sentences) because they are spoken aloud.
+    Never use markdown, bullet points, emojis, or special characters. When asked
+    to do something on the computer, USE YOUR TOOLS to actually do it instead of
+    explaining how. After a tool runs, confirm briefly and warmly. For general
+    questions, just answer conversationally.
 
 network:
   check_url: "https://www.google.com"

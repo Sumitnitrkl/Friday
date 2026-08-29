@@ -9,7 +9,7 @@ import yaml
 from core.listener import Listener
 from core.speaker import Speaker
 from core.brain import Brain
-from skills.dispatcher import Dispatcher
+from skills import tools
 from utils.network import is_online
 
 logger = logging.getLogger("FRIDAY")
@@ -28,7 +28,6 @@ class Friday:
         self.speaker   = Speaker(self.cfg, self.online)
         self.listener  = Listener(self.cfg)
         self.brain     = Brain(self.cfg, self.online)
-        self.dispatcher = Dispatcher(self.cfg, self.speaker)
 
         self._running  = False
 
@@ -72,42 +71,53 @@ class Friday:
         """Main loop — listen → understand → act → speak"""
         self._running = True
         wake_words = [w.lower() for w in self.cfg["assistant"]["wake_words"]]
+        followup_window = self.cfg["assistant"].get("followup_window", 2)
+        followups_left = 0
 
         logger.info(f"Listening for wake words: {wake_words}")
         print(f"\nListening for: {wake_words}\n")
 
         while self._running:
             try:
-                # Phase 1 — passive listen for wake word
-                raw = self.listener.listen_passive()
-                if not raw:
-                    continue
+                self._announce_reminders()
 
-                if not any(w in raw.lower() for w in wake_words):
-                    continue
+                if followups_left > 0:
+                    # No wake word needed for a couple of turns after a reply.
+                    print("[listening — follow-up]")
+                    heard = self.listener.listen_active()
+                    if not heard:
+                        followups_left = 0
+                        continue
+                    command_text = self._extract_command(heard, wake_words)
+                else:
+                    raw = self.listener.listen_passive()
+                    if not raw or not any(w in raw.lower() for w in wake_words):
+                        continue
+                    logger.info(f"Wake word detected in: '{raw}'")
+                    self.speaker.chime()
+                    command_text = self._extract_command(raw, wake_words)
+                    if not command_text:
+                        self.speaker.say("Yeah? What do you need?")
+                        command_text = self.listener.listen_active()
 
-                # Wake word detected
-                logger.info(f"Wake word detected in: '{raw}'")
-                self.speaker.chime()
-
-                # Capture command (may already be in the same utterance)
-                command_text = self._extract_command(raw, wake_words)
                 if not command_text:
-                    self.speaker.say("Yeah? What do you need?")
-                    command_text = self.listener.listen_active()
-
-                if not command_text:
-                    self.speaker.say("Didn't catch that — try again.")
                     continue
 
                 logger.info(f"Command: '{command_text}'")
-                self._handle_command(command_text)
+                print(f"[you] {command_text}")
+                if not self._handle_command(command_text):
+                    break
+                followups_left = followup_window
 
             except KeyboardInterrupt:
                 break
             except Exception as e:
                 logger.error(f"Loop error: {e}", exc_info=True)
                 self.speaker.say("Something went wrong on my end. Try again.")
+
+    def _announce_reminders(self):
+        while tools.due_reminders:
+            self.speaker.say(tools.due_reminders.pop(0))
 
     # ------------------------------------------------------------------ #
     def _extract_command(self, utterance: str, wake_words: list) -> str:
@@ -118,10 +128,24 @@ class Friday:
                 return utterance[len(w):].strip(" ,.")
         return ""
 
-    def _handle_command(self, text: str):
-        """Send text through AI brain → dispatcher → speaker."""
-        intent = self.brain.parse(text)
-        logger.info(f"Intent: {intent}")
-        result = self.dispatcher.execute(intent, text)
-        if result:
-            self.speaker.say(result)
+    EXIT_PHRASES = ("stop listening", "go to sleep", "goodbye friday", "shut yourself down")
+
+    def _handle_command(self, text: str) -> bool:
+        """Send text to the Gemini brain (which runs tools) and speak the reply.
+
+        Returns False if FRIDAY should stop running.
+        """
+        low = text.lower().strip()
+
+        if any(p in low for p in self.EXIT_PHRASES):
+            self.speaker.say("Okay, going quiet. Say the wake word when you need me.")
+            return False
+        if low in ("reset", "new conversation", "forget everything"):
+            self.brain.reset()
+            self.speaker.say("Fresh start — I've cleared our conversation.")
+            return True
+
+        reply = self.brain.think(text)
+        if reply:
+            self.speaker.say(reply)
+        return True

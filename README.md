@@ -1,187 +1,150 @@
 # 🤖 FRIDAY — Personal AI Voice Assistant
 
-> Warm, casual, always-on voice assistant for macOS and Windows.
-> Fully offline capable with online enhancements.
+> A warm, always-on voice assistant for Windows and macOS. Say the wake word,
+> talk naturally, and FRIDAY uses **Google Gemini with function calling** to
+> actually *do things* on your computer — it's an agent, not a fixed command list.
 
 ---
 
-## ✨ Features
+## ✨ What it can do
 
-| Category | What you can say |
+Talk to it naturally — Gemini decides which of its tools to use, and can chain
+several in one request ("open Chrome **and** tell me the weather").
+
+| Category | Examples |
 |---|---|
-| **Apps** | "Open Chrome" · "Close Spotify" · "Launch VS Code" |
-| **Web** | "Search for Python tutorials" · "Open github.com" |
-| **Files** | "Create a folder called Projects on Desktop" · "Move Downloads to Desktop" |
-| **System** | "Volume up" · "Mute" · "Brightness down" · "WiFi off" |
-| **Media** | "Play" · "Pause" · "Next track" · "Previous song" |
-| **Info** | "What time is it?" · "What's the weather in London?" |
-| **Terminal** | "Run git status" · "Check disk space" |
-| **Reminders** | "Set a reminder to call John at 3pm" |
-| **Screen** | "Take a screenshot" · "Lock the screen" |
-| **Power** | "Sleep" · "Restart" · "Shut down" |
+| **Apps** | "open WhatsApp" · "close Spotify" · "launch VS Code" (opens Store apps too) |
+| **Web & info** | "search the web for the iPhone 16 price" · "what's the weather in Delhi?" · "what time is it?" |
+| **System** | "set volume to 40" · "mute" · "brightness up" · "turn wifi off" · "battery status" |
+| **Media** | "play" · "pause" · "next track" |
+| **Files** | "make a folder called Projects on my desktop" · "open my downloads folder" |
+| **Screen & power** | "take a screenshot" · "lock the screen" · "shut down the computer" |
+| **Productivity** | "remind me in 20 minutes to join standup" · "add buy milk to my list" · "read my to-do list" · "take a note" |
+| **Type & run** | "type my email address" · "run git status" |
+| **Anything else** | full conversational AI — "explain black holes in one line", "write a birthday message" |
+
+Say **"stop listening"** or **"go to sleep"** to pause it (or press Ctrl+C).
+After a reply you can keep talking for a couple of turns without repeating the wake word.
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Setup (5 minutes)
 
-### 1. Install dependencies
-
+### 1. Install Python 3.10+ and dependencies
 ```bash
-# macOS prerequisites
-brew install ffmpeg portaudio mpg123
-
-# All platforms
 pip install -r requirements.txt
 ```
+If **PyAudio** fails (it's the mic driver):
+- **Windows:** `pip install pipwin && pipwin install pyaudio`
+- **macOS:** `brew install portaudio && pip install pyaudio`
+- **Linux:** `sudo apt install portaudio19-dev python3-pyaudio && pip install pyaudio`
 
-### 2. Set your Claude API key (for best AI understanding)
+Windows extras for volume/brightness: `pip install pycaw comtypes wmi`
 
-```bash
-# macOS/Linux
-export ANTHROPIC_API_KEY="your-key-here"
-
-# Windows
-set ANTHROPIC_API_KEY=your-key-here
+### 2. Add your FREE Gemini API key
+Get one (no credit card) at **https://aistudio.google.com/apikey**, then copy
+`.env.example` to `.env` and paste it:
 ```
+GEMINI_API_KEY=your_key_here
+```
+`.env` is gitignored — your key never gets committed.
 
-Or edit `config.yaml` → `ai.claude_api_key`.
-
-### 3. Run FRIDAY
-
+### 3. Run it
 ```bash
 python main.py
 ```
+Wait for "FRIDAY online", then say: **"Hey FRIDAY, what can you do?"**
 
-### 4. Install for auto-start on boot
+---
 
-```bash
-python setup_autostart.py
+## 🧠 How it works
+
+```
+your voice ─▶ microphone (SpeechRecognition + Google STT)  → core/listener.py
+           ─▶ Gemini with function calling                  → core/brain.py
+              (it picks & runs tools automatically)          → skills/tools.py
+           ─▶ reply spoken in a natural neural voice         → core/speaker.py
 ```
 
----
-
-## 🎙️ Wake Words
-
-Say any of these to activate FRIDAY:
-- **"Hey FRIDAY"**
-- **"FRIDAY"**
-- **"OK FRIDAY"**
-
-Then speak your command naturally.
-
-**Example:**
-> "Hey FRIDAY, open Chrome and search for the weather"
+- **Brain:** Google Gemini (`gemini-3.5-flash-lite` by default) with automatic
+  function calling over every tool in `skills/tools.py`.
+- **Ears:** Google's free speech recognizer (needs internet, no ffmpeg).
+- **Voice:** Microsoft Edge neural TTS (free), played via `pygame`.
+- **Everything is free** — just needs internet and a free Gemini key.
 
 ---
 
-## 🧠 AI Backends
+## ⚙️ Customizing (`config.yaml`)
 
-| Mode | Engine | Requires |
-|---|---|---|
-| Online (best) | Claude API | `ANTHROPIC_API_KEY` |
-| Offline (local AI) | Ollama + Llama 3 | [Install Ollama](https://ollama.ai) + `ollama pull llama3` |
-| Fallback | Rule-based | Nothing — always works |
+```yaml
+assistant:
+  wake_words: ["hey friday", "friday", "ok friday"]   # rename to anything
+  followup_window: 2                                   # turns without re-waking
 
-FRIDAY automatically picks the best available backend.
+voice:
+  edge_tts_voice: "en-US-JennyNeural"   # try en-IN-NeerjaNeural, en-GB-SoniaNeural
+                                        # list all: edge-tts --list-voices
+
+ai:
+  gemini_model: "gemini-3.5-flash-lite" # smarter: gemini-2.5-flash / gemini-3.6-flash
+  personality: >                        # edit to change how FRIDAY talks + behaves
+    You are FRIDAY, a warm, friendly assistant...
+```
+
+> **Note on models:** the free tier is rate-limited per minute. `flash-lite` has
+> the most generous limit (best for voice). Bigger models are smarter but you'll
+> hit "give me a few seconds" more often.
 
 ---
 
-## 🔊 Voice Engines
+## 🛠️ Add a new power (this is the magic)
 
-| Mode | Engine | Voice |
-|---|---|---|
-| Online | edge-tts | Emily (Irish English — warm, natural) |
-| Offline | pyttsx3 | System TTS voice |
+Adding a capability is one function — Gemini figures out when to use it:
+
+```python
+# in skills/tools.py
+def flip_a_coin() -> str:
+    """Flip a coin and return heads or tails."""
+    import random
+    return random.choice(["Heads.", "Tails."])
+
+# then add it to the list at the bottom:
+ALL_TOOLS = [ ..., flip_a_coin ]
+```
+
+That's it — say "flip a coin" and it works. Write clear type hints and a good
+docstring; that's what Gemini reads to decide when and how to call your tool.
 
 ---
 
-## 📁 Project Structure
+## 📁 Project structure
 
 ```
 FRIDAY/
-├── main.py                 ← Entry point
-├── config.yaml             ← All settings
-├── requirements.txt        ← Dependencies
-├── setup_autostart.py      ← Boot integration
+├── main.py               ← entry point (loads .env, starts the loop)
+├── config.yaml           ← all settings + personality
 ├── core/
-│   ├── assistant.py        ← Main loop & orchestration
-│   ├── listener.py         ← Speech-to-text (Whisper + Google)
-│   ├── speaker.py          ← Text-to-speech (edge-tts + pyttsx3)
-│   └── brain.py            ← AI intent parser (Claude + Ollama)
+│   ├── assistant.py      ← wake-word loop, follow-ups, reminders
+│   ├── listener.py       ← speech-to-text (Google)
+│   ├── speaker.py        ← neural TTS + pygame playback
+│   └── brain.py          ← Gemini function-calling brain
 ├── skills/
-│   ├── dispatcher.py       ← Routes intents to skills
-│   ├── apps.py             ← Open/close applications
-│   ├── browser.py          ← Web search & URLs
-│   ├── filesystem.py       ← File operations
-│   ├── system.py           ← Volume, brightness, power
-│   ├── media.py            ← Music/media control
-│   ├── info.py             ← Time, weather, reminders
-│   └── terminal.py         ← Shell commands
-└── utils/
-    └── network.py          ← Online/offline detection
+│   ├── tools.py          ← ★ the tools Gemini can call (add powers here)
+│   ├── apps.py           ← open/close apps (Store apps via AppUserModelID)
+│   ├── system.py         ← volume, brightness, wifi, bluetooth, power, screenshot
+│   ├── filesystem.py     ← file create/open/delete/move
+│   ├── browser.py        ← web search / open URL
+│   └── media_info_terminal.py ← media keys, time, weather, run command
+└── utils/network.py      ← online/offline detection
 ```
 
 ---
 
-## ⚙️ Configuration (`config.yaml`)
+## 🔧 Troubleshooting
 
-Key settings to customize:
-
-```yaml
-A:
-  name: "FRIDAY"
-  wake_words: ["hey friday", "friday"]
-
-voice:
-  edge_tts_voice: "en-IE-EmilyNeural"   # Change voice here
-  pyttsx3_rate: 175                       # Speech speed
-
-ai:
-  claude_api_key: "sk-ant-..."           # Or use env var
-  ollama_model: "llama3"                 # Local model name
-
-speech:
-  whisper_model: "base"                  # tiny=fast, medium=accurate
-```
-
----
-
-## 🛠️ Adding Custom Skills
-
-1. Create a function in the appropriate `skills/` file:
-```python
-def my_skill(params: dict) -> str:
-    # do something
-    return "Done!"
-```
-
-2. Add it to `skills/dispatcher.py` SKILL_MAP:
-```python
-"my_intent": my_skill,
-```
-
-3. Update the AI system prompt in `core/brain.py` to recognize the new intent.
-
----
-
-## 🔒 Privacy
-
-- Whisper STT runs **100% locally** — your voice never leaves your machine
-- Offline mode with Ollama means **zero cloud dependency**
-- No conversation data is stored permanently
-
----
-
-## 📋 Platform Notes
-
-### macOS
-- Microphone permission: System Preferences → Privacy → Microphone
-- Accessibility permission (for GUI automation): System Preferences → Privacy → Accessibility
-- `brightness` CLI: `brew install brightness`
-- Bluetooth control: `brew install blueutil`
-
-### Windows
-- Run as Administrator for brightness/bluetooth control
-- `pyaudio` installation: `pip install pipwin && pipwin install pyaudio`
-- Volume control: `pip install pycaw`
-- Add `ffmpeg` to PATH for audio playback
+- **It doesn't hear me** — lower `energy_threshold` in `config.yaml` (try 150); check mic permission for your terminal.
+- **It hears random noise** — raise `energy_threshold` (try 600+).
+- **"I'm getting a lot of requests"** — free-tier rate limit; wait a few seconds, or switch to a `flash-lite` model.
+- **"My API key seems missing/invalid"** — check `GEMINI_API_KEY` in `.env`.
+- **No voice** — needs internet for the neural voice; it falls back to the offline voice. Replies always print too.
+- Speech recognition, the neural voice, and Gemini all need internet.
