@@ -32,13 +32,17 @@ if __name__ == "__main__":
         enroll_interactive()
         sys.exit(0)
 
-    ui = None
     if "--ui" in sys.argv:
+        # Desktop app window (native window hosting the HUD)
         from ui.server import UIServer
+        from ui.app import launch
         ui = UIServer()
         ui.start()
-        ui.open_browser()
+        friday = Friday(ui=ui)
+        launch(friday, ui)      # blocks until the window is closed
+        sys.exit(0)
 
-    friday = Friday(ui=ui)
+    # Terminal mode
+    friday = Friday()
     friday.greet()
     friday.run()

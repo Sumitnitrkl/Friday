@@ -54,7 +54,7 @@ GEMINI_API_KEY=your_key_here
 ### 3. Run it
 ```bash
 python main.py          # terminal
-python main.py --ui     # + holographic HUD in your browser
+python main.py --ui     # + holographic HUD in a desktop app window
 ```
 Wait for "FRIDAY online", then say: **"Hey FRIDAY, what can you do?"**
 
@@ -80,10 +80,12 @@ doesn't match is silently ignored — great for continuous-listening mode.
 
 ## 🖥️ The Holographic HUD (`--ui`)
 
-Run with `--ui` and FRIDAY opens a cinematic JARVIS-style interface in your
-browser — a glowing reactive energy core, rotating holographic rings, orbiting
-particles, a live clock, and captions of what you said and what FRIDAY replies.
-It reacts in real time to FRIDAY's actual state:
+Run with `--ui` and FRIDAY opens a cinematic JARVIS-style interface in its own
+**desktop app window** (a native window via pywebview — its own taskbar icon, no
+browser tabs or address bar; it falls back to an Edge/Chrome app window if
+needed). You get a glowing reactive energy core, rotating holographic rings,
+orbiting particles, a live clock, and captions of what you said and what FRIDAY
+replies. It reacts in real time to FRIDAY's actual state:
 
 | State | What you see |
 |---|---|
@@ -92,10 +94,10 @@ It reacts in real time to FRIDAY's actual state:
 | **Processing** | amber, fast spin |
 | **Speaking** | cyan waveform pulses while the reply types out |
 
-**Click the core** (or say the wake word) to start talking. The HUD is served
-locally at `http://127.0.0.1:8760`; nothing leaves your machine. It's plain
-HTML/JS ([ui/index.html](ui/index.html)) driven over a WebSocket by
-[ui/server.py](ui/server.py), so you can restyle it freely.
+**Click the core** (or just talk) to start. Everything runs locally; nothing
+leaves your machine. The window is plain HTML/JS ([ui/index.html](ui/index.html))
+driven over a WebSocket by [ui/server.py](ui/server.py) and hosted in a native
+window by [ui/app.py](ui/app.py), so you can restyle it freely.
 
 ---
 

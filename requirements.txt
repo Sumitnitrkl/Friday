@@ -9,8 +9,9 @@ python-dotenv>=1.0        # loads GEMINI_API_KEY from a .env file
 # Brain — Google Gemini with function calling (free)
 google-genai>=1.0.0
 
-# Holographic HUD (python main.py --ui)
+# Holographic HUD desktop app (python main.py --ui)
 websockets>=12.0
+pywebview>=5.0           # native desktop window (falls back to Edge/Chrome app-mode)
 
 # Speech-to-Text (SpeechRecognition + Google's free recognizer; needs internet)
 SpeechRecognition>=3.10
