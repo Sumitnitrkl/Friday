@@ -128,7 +128,9 @@ class Friday:
                         heard = self.listener.listen_active()
                         command_text = self._clean(heard, wake_words) if heard else ""
 
-                if not command_text:
+                if not command_text or not self._meaningful(command_text):
+                    if command_text:
+                        logger.info(f"Ignored noise: '{command_text}'")
                     if not always:
                         self._emit(state="standby")
                     continue
@@ -159,6 +161,12 @@ class Friday:
             if text.startswith(w):
                 return utterance[len(w):].strip(" ,.")
         return ""
+
+    @staticmethod
+    def _meaningful(text: str) -> bool:
+        """Filter out STT noise like '0' or '753' — a real command has letters."""
+        t = text.strip()
+        return len(t) >= 2 and any(c.isalpha() for c in t)
 
     def _clean(self, utterance: str, wake_words: list) -> str:
         """Follow-up / always-on path: use the whole command, only trimming a
