@@ -8,6 +8,7 @@ import logging
 import asyncio
 import threading
 import os
+import re
 import tempfile
 import platform
 
@@ -54,6 +55,7 @@ class Speaker:
         text = (text or "").strip()
         if not text:
             return
+        text = self._say_name(text)
         logger.info(f"Speaking: '{text}'")
         print(f"\nFRIDAY: {text}\n")
 
@@ -65,6 +67,13 @@ class Speaker:
                 except Exception as e:
                     logger.warning(f"edge-tts failed, falling back to offline: {e}")
             self._speak_pyttsx3(text)
+
+    @staticmethod
+    def _say_name(text: str) -> str:
+        """Say the name as 'Edith', not the letters E-D-I-T-H."""
+        text = re.sub(r"\bE\.?\s?D\.?\s?I\.?\s?T\.?\s?H\.?", "Edith", text)  # E.D.I.T.H.
+        text = re.sub(r"\bEDITH\b", "Edith", text)                          # all-caps
+        return text
 
     # ------------------------------------------------------------------ #
     def _speak_edge(self, text: str):
