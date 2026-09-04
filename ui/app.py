@@ -1,16 +1,16 @@
 """
-FRIDAY desktop window — hosts the HUD in a native application window instead of
-a browser tab.
+Launch EDITH's HUD as a desktop application window (not a browser tab).
 
-Preferred: pywebview (native OS window via WebView2 on Windows).
-Fallbacks: a chromeless Edge/Chrome "--app" window, then a normal browser tab.
+Order of preference:
+  1. pywebview  — a true native window (pip install pywebview), best "app" feel
+  2. Edge/Chrome in --app mode — a chromeless application window, zero extra deps
+  3. default browser — last-resort fallback
 """
 import os
 import shutil
-import logging
-import threading
 import subprocess
-import webbrowser
+import threading
+import logging
 
 logger = logging.getLogger("FRIDAY.App")
 
@@ -32,42 +32,36 @@ def _find_chromium():
 
 
 def launch(friday, ui):
-    """Open the HUD as a desktop window and run FRIDAY. Blocks until it closes."""
+    """Open the HUD in a desktop window and run EDITH (blocks until it stops)."""
     url = f"http://127.0.0.1:{ui.http_port}"
+    title = friday.cfg["assistant"].get("name", "EDITH")
 
-    # --- Preferred: native window via pywebview --------------------------- #
+    # 1) Native window via pywebview (blocks on the main thread when started,
+    #    so the voice loop runs in a background thread).
     try:
         import webview
-        # The voice loop runs in the background; the GUI owns the main thread.
-        threading.Thread(
-            target=lambda: (friday.greet(), friday.run()),
-            daemon=True,
-        ).start()
-        webview.create_window(
-            "FRIDAY",
-            url,
-            width=1120, height=720,
-            min_size=(900, 600),
-            background_color="#01060F",
-        )
-        logger.info("Launching FRIDAY desktop window (pywebview)")
-        webview.start()   # blocks on the main thread until the window is closed
+        webview.create_window(title, url, width=1160, height=760,
+                              min_size=(900, 600), background_color="#01060f")
+        threading.Thread(target=lambda: (friday.greet(), friday.run()),
+                         daemon=True).start()
+        logger.info("Desktop window via pywebview")
+        webview.start()
         return
     except Exception as e:
-        logger.warning(f"pywebview window unavailable ({e}); trying app-mode window")
+        logger.info(f"pywebview not used ({e}); trying an app-mode window")
 
-    # --- Fallback: chromeless Edge/Chrome window -------------------------- #
-    browser = _find_chromium()
-    if browser:
+    # 2) Chromeless Edge/Chrome application window (non-blocking), voice loop
+    #    then runs on the main thread as usual.
+    exe = _find_chromium()
+    if exe:
         try:
-            subprocess.Popen([browser, f"--app={url}", "--window-size=1120,760"])
-            logger.info(f"Launched app-mode window via {os.path.basename(browser)}")
+            subprocess.Popen([exe, f"--app={url}", "--window-size=1160,780"])
+            logger.info(f"Desktop window via {os.path.basename(exe)} --app")
         except Exception as e:
-            logger.warning(f"app-mode failed ({e}); opening a browser tab")
-            webbrowser.open(url)
+            logger.warning(f"app-mode failed ({e}); opening default browser")
+            ui.open_browser()
     else:
-        webbrowser.open(url)
+        ui.open_browser()
 
-    # The window opened without blocking, so run the assistant here.
     friday.greet()
     friday.run()

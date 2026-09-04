@@ -69,10 +69,12 @@ class Speaker:
     # ------------------------------------------------------------------ #
     def _speak_edge(self, text: str):
         import edge_tts
-        voice = self.vcfg.get("edge_tts_voice", "en-US-JennyNeural")
+        voice = self.vcfg.get("edge_tts_voice", "en-GB-RyanNeural")
+        pitch = self.vcfg.get("edge_tts_pitch", "+0Hz")
+        rate  = self.vcfg.get("edge_tts_rate", "+0%")
 
         async def _run(path):
-            await edge_tts.Communicate(text, voice).save(path)
+            await edge_tts.Communicate(text, voice, pitch=pitch, rate=rate).save(path)
 
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as f:
             tmp = f.name

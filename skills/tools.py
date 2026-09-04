@@ -214,6 +214,110 @@ def run_command(command: str) -> str:
     return _mit.run_command({"command": command})
 
 
+# ── Full computer control (PowerShell) + inspection ──────────────────────────
+
+# Raw-disk / drive-wiping operations — ALWAYS blocked, regardless of anything else.
+_RAW_DISK = re.compile(
+    r"(\bformat\b\s+[a-z]:|\bformat\s+/|format-volume|\bdiskpart\b|\bmkfs\b|"
+    r"clear-disk|remove-partition|cipher\s+/w)", re.I)
+
+# A destructive VERB (deletes, powers off, kills, changes system state).
+_DESTRUCTIVE_VERB = re.compile(
+    r"(remove-item|\brm\b|\bdel\b|\brmdir\b|\brd\b|stop-computer|restart-computer|"
+    r"\bshutdown\b|stop-process|\bkill\b|set-executionpolicy|uninstall-|disable-|"
+    r"reg(\.exe)?\s+delete|clear-content)", re.I)
+
+# A dangerous TARGET for a destructive verb: a drive root (C:\ alone), the
+# Windows/Program Files trees, or the Users root itself (but NOT files inside a
+# user's own folder like C:\Users\Name\Desktop\x.txt — those just need confirm).
+_DANGER_TARGET = re.compile(
+    r"([a-z]:\\(\s|$|['\"]|\*|-)|"
+    r"[a-z]:\\windows\b|"
+    r"[a-z]:\\program files( \(x86\))?\b|"
+    r"[a-z]:\\users(\s|$|['\"]))", re.I)
+
+
+def run_powershell(command: str, confirmed: bool = False) -> str:
+    """Run a PowerShell command to control ANY part of the computer — files, apps,
+    settings, network, processes, installed software, and more. This is your general
+    'do anything' tool. For DESTRUCTIVE or irreversible actions (deleting files,
+    shutting down, killing processes, changing system settings), you MUST confirm
+    with the user first, then call again with confirmed=True."""
+    destructive = bool(_DESTRUCTIVE_VERB.search(command))
+    catastrophic = bool(_RAW_DISK.search(command)) or \
+        (destructive and bool(_DANGER_TARGET.search(command)))
+    if catastrophic:
+        return ("I won't run that — it targets a whole drive or a core system "
+                "location and could permanently damage the computer.")
+    if destructive and not confirmed:
+        return (f"CONFIRM_NEEDED: this looks destructive -> [{command}]. Ask the user to "
+                "confirm out loud; only if they clearly agree, call run_powershell again "
+                "with the same command and confirmed=true.")
+    try:
+        r = subprocess.run(["powershell", "-NoProfile", "-Command", command],
+                           capture_output=True, text=True, timeout=60)
+        out = (r.stdout or r.stderr or "").strip()
+        return f"Done. {out[:1000]}" if out else "Done."
+    except subprocess.TimeoutExpired:
+        return "That command ran too long, so I stopped it."
+    except Exception as e:
+        return f"Command failed: {e}"
+
+
+def read_file(path: str) -> str:
+    """Read and return the text contents of a file (first ~4000 chars). Path may use '~'."""
+    p = os.path.expanduser(path)
+    if not os.path.exists(p):
+        return f"There's no file at {p}."
+    try:
+        with open(p, "r", encoding="utf-8", errors="replace") as f:
+            data = f.read(4000)
+        return data or "That file is empty."
+    except Exception as e:
+        return f"Couldn't read that: {e}"
+
+
+def list_directory(path: str = "~") -> str:
+    """List the files and folders in a directory. Path may use '~'."""
+    p = os.path.expanduser(path)
+    if not os.path.isdir(p):
+        return f"{p} isn't a folder."
+    try:
+        entries = sorted(os.listdir(p))
+        return ", ".join(entries[:60]) if entries else f"{p} is empty."
+    except Exception as e:
+        return f"Couldn't list that: {e}"
+
+
+def find_files(name: str, root: str = "~") -> str:
+    """Search for files or folders whose name contains the given text, under a root folder."""
+    base = os.path.expanduser(root)
+    hits, scanned = [], 0
+    try:
+        for dirpath, dirs, files in os.walk(base):
+            scanned += 1
+            if scanned > 3000:
+                break
+            for n in files + dirs:
+                if name.lower() in n.lower():
+                    hits.append(os.path.join(dirpath, n))
+                    if len(hits) >= 20:
+                        return "Found: " + "; ".join(hits)
+    except Exception as e:
+        return f"Search error: {e}"
+    return "Found: " + "; ".join(hits) if hits else f"No matches for '{name}' under {base}."
+
+
+def system_info() -> str:
+    """Report OS, CPU, memory and disk summary for this computer."""
+    import psutil
+    vm = psutil.virtual_memory()
+    du = psutil.disk_usage(os.path.expanduser("~"))
+    return (f"{platform.system()} {platform.release()}, {psutil.cpu_count()} cores at "
+            f"{psutil.cpu_percent(interval=0.3)} percent, memory {vm.percent} percent used, "
+            f"disk {du.percent} percent used, {du.free // (1024**3)} gigabytes free.")
+
+
 # ── Reminders, todos, notes ──────────────────────────────────────────────────
 
 def set_reminder(message: str, minutes: float) -> str:
@@ -412,8 +516,8 @@ ALL_TOOLS = [
     system_status, type_text,
     # files
     create_file, open_path, delete_path, move_path,
-    # terminal
-    run_command,
+    # full computer control + inspection
+    run_powershell, read_file, list_directory, find_files, system_info,
     # productivity
     set_reminder, add_todo, list_todos, clear_todos, take_note,
     # messaging + music control

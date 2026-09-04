@@ -1,8 +1,12 @@
-# 🤖 FRIDAY — Personal AI Voice Assistant
+# 🤖 EDITH — Personal AI Voice Assistant
 
-> A warm, always-on voice assistant for Windows and macOS. Say the wake word,
-> talk naturally, and FRIDAY uses **Google Gemini with function calling** to
-> actually *do things* on your computer — it's an agent, not a fixed command list.
+> A JARVIS-style, always-on voice assistant for Windows. Talk naturally and EDITH
+> uses **Google Gemini with function calling** to actually *do things* on your
+> computer — an agent, not a fixed command list. It can control the whole machine
+> via PowerShell (with a spoken confirmation before anything destructive), runs a
+> cinematic holographic HUD as a **desktop app**, and only obeys **your** voice.
+
+> Launch: `python main.py --ui` (desktop app + voice) · enroll your voice: `python main.py --enroll`
 
 ---
 

@@ -67,10 +67,11 @@ class Friday:
         else:
             period = "evening"
 
+        name = self.cfg["assistant"].get("name", "EDITH")
         greetings = [
-            f"Hey! Good {period}. I'm FRIDAY — your personal assistant. What do you need?",
-            f"Good {period}! FRIDAY here, ready to help. Just say the word.",
-            f"Hey there! Good {period}. Systems are up and I'm all ears.",
+            f"Good {period}. {name} online. All systems nominal — how may I help?",
+            f"{name} at your service. Good {period}. What shall we do first?",
+            f"Good {period}. {name} is online and standing by.",
         ]
         import random
         greeting = random.choice(greetings)

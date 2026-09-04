@@ -11,7 +11,9 @@ google-genai>=1.0.0
 
 # Holographic HUD desktop app (python main.py --ui)
 websockets>=12.0
-pywebview>=5.0           # native desktop window (falls back to Edge/Chrome app-mode)
+# Optional native window. Without it, EDITH uses a chromeless Edge/Chrome app
+# window (no extra deps). For a fully-native window: pip install pywebview
+# pywebview>=5.0
 
 # Speech-to-Text (SpeechRecognition + Google's free recognizer; needs internet)
 SpeechRecognition>=3.10

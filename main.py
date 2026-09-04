@@ -4,7 +4,8 @@ Cross-platform (Windows/macOS), warm & casual personality, Gemini-powered agent.
 
 Run:
     python main.py          voice assistant (terminal)
-    python main.py --ui     voice assistant + holographic HUD in the browser
+    python main.py --ui     voice assistant + holographic HUD in a desktop app window
+    python main.py --enroll one-time voice enrollment (voice ID)
 """
 
 import sys

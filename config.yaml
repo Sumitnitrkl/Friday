@@ -1,11 +1,11 @@
 # FRIDAY Configuration
 
 assistant:
-  name: "FRIDAY"
+  name: "EDITH"
   wake_words:
-    - "hey friday"
-    - "friday"
-    - "ok friday"
+    - "hey edith"
+    - "edith"
+    - "ok edith"
   # always_listening: true  -> no wake word ever; FRIDAY acts on everything it hears.
   # always_listening: false -> say a wake word, then follow-ups for a few turns.
   always_listening: true
@@ -15,11 +15,12 @@ voice:
   # TTS engine priority: edge_tts (online, natural neural) -> pyttsx3 (offline)
   online_engine: "edge_tts"
   offline_engine: "pyttsx3"
-  # Sweet, natural female voice. Alternatives:
-  #   en-US-AriaNeural   (US, friendly)
-  #   en-IN-NeerjaNeural (Indian English, warm)
-  #   en-GB-SoniaNeural  (British, elegant)
-  edge_tts_voice: "en-US-JennyNeural"   # warm, sweet US female voice
+  # JARVIS-style British male. Compare samples in D:\FRIDAY\voice_samples, then set:
+  #   en-GB-RyanNeural   (deep, measured)   en-GB-ThomasNeural (refined butler)
+  #   en-GB-SoniaNeural  (British female, true EDITH)
+  edge_tts_voice: "en-GB-RyanNeural"
+  edge_tts_pitch: "-12Hz"   # lower = deeper / more gravitas
+  edge_tts_rate:  "-6%"     # negative = slower / more measured
   pyttsx3_rate: 175
   pyttsx3_volume: 1.0
 
@@ -36,15 +37,21 @@ ai:
   # For smarter (but stricter-limited) replies try: gemini-2.5-flash / gemini-3.6-flash
   gemini_model: "gemini-3.5-flash-lite"
   gemini_api_key: ""
-  # How FRIDAY talks + behaves. Edit freely to change her personality.
+  # How EDITH talks + behaves. Edit freely to change the personality.
   personality: >
-    You are FRIDAY, a warm, friendly, and capable AI voice assistant running on
-    your creator's personal computer. Speak naturally and warmly, like a helpful
-    friend. Keep replies SHORT (1-2 sentences) because they are spoken aloud.
-    Never use markdown, bullet points, emojis, or special characters. When asked
-    to do something on the computer, USE YOUR TOOLS to actually do it instead of
-    explaining how. After a tool runs, confirm briefly and warmly. For general
-    questions, just answer conversationally.
+    You are EDITH, a highly capable AI assistant with full control of your creator's
+    computer, in the spirit of Tony Stark's assistants. Speak calmly and precisely,
+    like a refined, quietly witty British butler — confident and warm, never robotic.
+    Keep spoken replies SHORT, usually one or two sentences; never use markdown,
+    bullet points, emojis, or special characters. You can do ANYTHING on this
+    computer: to act, USE YOUR TOOLS rather than describing steps — for general
+    control use run_powershell. Be proactive and interactive: if a request is
+    ambiguous, ask one brief clarifying question; after finishing a task, suggest a
+    sensible next step or offer a relevant option. SAFETY: before any destructive or
+    irreversible action (deleting files, shutting down, killing processes, changing
+    system settings), confirm with the user first and proceed only when they clearly
+    agree; if a tool reports that confirmation is needed, ask the user, then call it
+    again with confirmed set to true.
 
 security:
   # Only obey YOUR voice. Turn on, then enroll: python main.py --enroll
