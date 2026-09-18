@@ -108,39 +108,60 @@ def enroll_interactive(samples: int = 6):
     r = sr.Recognizer()
     r.pause_threshold = 0.8
 
-    print("\n=== FRIDAY Voice Enrollment ===")
-    print("Do this in a quiet room. Speak naturally when you see RECORD.\n")
+    # Optional spoken guidance so enrollment is hands-free (uses EDITH's voice).
+    speak = None
+    try:
+        import yaml
+        from core.speaker import Speaker
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cfg = yaml.safe_load(open(os.path.join(root, "config.yaml"), encoding="utf-8"))
+        speak = Speaker(cfg, online=True).say
+    except Exception:
+        speak = None
+
+    def announce(msg, say=True):
+        print(msg)
+        if say and speak:
+            try:
+                speak(msg)
+            except Exception:
+                pass
+
+    announce("Voice enrollment. Please do this in a quiet room. "
+             "When I ask, repeat the phrase in your normal voice.")
     try:
         with sr.Microphone() as source:
             print("Calibrating microphone… stay quiet for a moment.")
             r.adjust_for_ambient_noise(source, duration=1.2)
     except Exception as e:
-        print(f"No microphone available: {e}")
+        announce(f"I couldn't access a microphone: {e}")
         return
 
     phrases = [
-        "Hey FRIDAY, it's me.",
-        "FRIDAY, only listen to my voice.",
+        "Hey Edith, it's me.",
+        "Edith, only listen to my voice.",
         "This is my voice signature.",
-        "FRIDAY, you are my assistant.",
+        "Edith, you are my assistant.",
         "Recognise me by my voice.",
-        "Good morning FRIDAY.",
+        "Good morning Edith.",
     ]
     wavs, i = [], 0
     while len(wavs) < samples:
-        print(f"RECORD [{len(wavs) + 1}/{samples}] — say: \"{phrases[i % len(phrases)]}\"")
+        phrase = phrases[i % len(phrases)]
         i += 1
+        announce(f"Please say: {phrase}")
         try:
             with sr.Microphone() as source:
                 audio = r.listen(source, timeout=8, phrase_time_limit=5)
             wavs.append(audio.get_wav_data())
-            print("  ✓ captured\n")
+            print(f"  ✓ captured {len(wavs)}/{samples}\n")
         except Exception as e:
-            print(f"  ✗ missed that ({e}); let's retry\n")
+            print(f"  ✗ missed that ({e}); retrying\n")
 
     if VoiceID().enroll(wavs):
-        print("✅ Enrollment complete — FRIDAY will now respond only to your voice.")
-        print("   If it ignores you, LOWER security.voice_threshold in config.yaml.")
-        print("   If it still obeys others, RAISE it. (Default 0.80)")
+        announce("Enrollment complete. I will now respond only to your voice.")
+        print("   If it ignores you, LOWER security.voice_threshold in config.yaml;")
+        print("   if it still obeys others, RAISE it. (Default 0.80)")
     else:
-        print("❌ Enrollment failed — not enough clear samples. Try again in a quieter spot.")
+        announce("Enrollment failed — I didn't get enough clear samples. "
+                 "Please try again in a quieter spot.")
