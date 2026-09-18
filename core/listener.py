@@ -87,7 +87,8 @@ class Listener:
                 return ""
 
         try:
-            text = self._recognizer.recognize_google(audio)
+            lang = self.scfg.get("language", "en-US")
+            text = self._recognizer.recognize_google(audio, language=lang)
             return (text or "").strip()
         except sr.UnknownValueError:
             return ""

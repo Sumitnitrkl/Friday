@@ -26,6 +26,8 @@ voice:
 
 speech:
   # Speech-to-text via SpeechRecognition + Google's free recognizer (needs internet)
+  # Match your accent for better accuracy: en-IN (Indian), en-US, en-GB, en-AU ...
+  language: "en-IN"
   listen_timeout: 8             # seconds to wait for you to start speaking
   phrase_time_limit: 15         # max seconds captured per command
   energy_threshold: 300         # mic sensitivity: raise if it hears noise, lower if it misses you
